@@ -1,0 +1,20 @@
+#!/bin/sh
+# Runs terraform, then rebuilds the terraprev snapshot when the state may have changed.
+#   bin/tf apply          (or symlink it onto your PATH as `tf`)
+# Rebuilds even when apply fails part-way: a partial apply still changes state.
+# Extra build flags via env, e.g. TERRAPREV_BUILD_ARGS="--pdf --theme dark" bin/tf apply
+
+TERRAPREV_HOME="$(cd "$(dirname "$(realpath "$0")")/.." && pwd)"
+
+terraform "$@"
+status=$?
+
+case "$1" in
+  apply|destroy|import|refresh|state|taint|untaint)
+    state="$PWD/terraform.tfstate"
+    if [ -f "$state" ]; then
+      node "$TERRAPREV_HOME/server/src/cli/build.ts" --state "$state" $TERRAPREV_BUILD_ARGS || echo "[terraprev] snapshot failed (terraform result unaffected)" >&2
+    fi
+    ;;
+esac
+exit $status

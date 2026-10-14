@@ -1,0 +1,6 @@
+{
+  "stateFile": "../floci-terraform/terraform.tfstate",
+  "port": 4610,
+  "defaultRegion": "us-east-1",
+  "priceCacheDays": 7
+}
