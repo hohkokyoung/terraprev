@@ -57,21 +57,36 @@ await click(page, '.react-flow__controls-zoomout');
 
 const node = (label: string) => `xpath///div[contains(@class,"rnode")][.//span[@class="rnode__label" and text()="${label}"]]`;
 
-await shot('overview', { total: '.total', cost: '.side', canvas: '.canvas', db: node('app-db') });
+await shot('overview', { total: '.total', cost: '.side', canvas: '.canvas', db: node('app-db'), stackbar: '.stackbar', legend: '.legend', costrows: '.costrows' });
 
 await click(page, node('app-db'));
 await shot('select', { db: node('app-db'), head: '.inspector__head', lines: '.lines' });
 
 await click(page, '.tabs ::-p-text(Usage)');
-await shot('usage', { slider: '.slider', total: '.total' });
-await page.focus('.slider input[type="range"]');
-await page.keyboard.press('End');
-await settle(page, 400);
-await shot('usage-max', { slider: '.slider', total: '.total' });
+// A real drag of the first slider, one shot per step, so the video's knob and total move with the cursor.
+const RANGE = '.slider input[type="range"]';
+const track = (await (await page.$(RANGE))!.boundingBox())!;
+const y = track.y + track.height / 2;
+const knob = 8; // half the thumb: its centre stops this far inside the track ends
+const DRAG = [0, 0.1, 0.22, 0.36, 0.5, 0.64, 0.78, 0.9, 1];
+await page.mouse.move(track.x + knob, y);
+await page.mouse.down();
+for (const [i, t] of DRAG.entries()) {
+  const x = track.x + knob + t * (track.width - 2 * knob);
+  await page.mouse.move(x, y, { steps: 4 });
+  await shot(`drag-${i}`, { slider: '.slider', total: '.total' });
+  shots[`drag-${i}`].cursor = { x: Math.round(x), y: Math.round(y), w: 0, h: 0 };
+}
+await page.mouse.up();
 await click(page, '::-p-text(Reset to defaults)');
 
 await click(page, '.tabs ::-p-text(Cost)');
+await page.mouse.click(60, 400); // empty canvas: clear the selection
+await settle(page, 400);
+// Each click in the video cuts to the state it produced: before, toggle on, resource picked.
+await shot('flow-0', { toggle: '.toggle--flow' });
 await click(page, '::-p-text(Data flow)');
+await shot('flow-1', { toggle: '.toggle--flow' });
 await click(page, node('app-asg'));
 await shot('flow', { asg: node('app-asg'), toggle: '.toggle--flow', paths: '.paths' });
 await click(page, '::-p-text(Data flow)');
@@ -83,11 +98,9 @@ await click(page, '.rnode__chips.is-open');
 await click(page, '::-p-text(Report)');
 await page.waitForSelector('.doc');
 await shot('report', { kpis: '.kpis', title: '.doc h1' });
-await page.evaluate(() => {
-  const r = document.querySelector('.report')!;
-  const f = document.querySelector('.finding')!;
-  r.scrollTop += f.getBoundingClientRect().top - 140;
-});
+await scrollReportTo(page, '.costsplit', 120);
+await shot('report-cost', { split: '.costsplit', catbars: '.catbars' });
+await scrollReportTo(page, '.finding', 140);
 await shot('findings', { finding: '.finding' });
 await click(page, '.report__close');
 
@@ -117,6 +130,14 @@ async function click(p: Page, sel: string) {
   const el = await p.waitForSelector(sel, { timeout: 5000 });
   await el!.click();
   await settle(p, 500);
+}
+
+/** Scroll the report so `sel` sits `top` px below the viewport top. */
+function scrollReportTo(p: Page, sel: string, top: number) {
+  return p.evaluate((s, t) => {
+    const r = document.querySelector('.report')!;
+    r.scrollTop += document.querySelector(s)!.getBoundingClientRect().top - t;
+  }, sel, top);
 }
 
 function settle(p: Page, ms: number) {

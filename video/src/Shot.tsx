@@ -1,17 +1,25 @@
 // One scene over real screenshots: a camera that eases between focus areas, an optional cursor
 // that moves and clicks, and a caption. Positions are in the page's CSS pixels (see shots.json).
 
-import { AbsoluteFill, Easing, Img, interpolate, staticFile, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, Easing, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import data from './shots.json';
 
 export type Rect = { x: number; y: number; w: number; h: number };
-type ShotName = keyof typeof data.shots;
+export type ShotName = keyof typeof data.shots;
 
 const VW = 1920;
 const VH = 1080;
 const K = VW / data.width; // page px → video px
-const MOVE = 28; // frames per camera move
+const MOVE = 22; // camera move length (timeline units, see useT)
 const ease = Easing.bezier(0.45, 0, 0.2, 1);
+
+/** Playback speed: timeline units per 30 fps frame. Below 1 slows the whole video evenly. */
+export const PACE = 0.82;
+
+/** The current time in timeline units (30 per second at PACE 1), whatever fps the video renders at. */
+export function useT() {
+  return (useCurrentFrame() * 30 * PACE) / useVideoConfig().fps;
+}
 
 export const at = (shot: ShotName, key: string): Rect => (data.shots[shot] as Record<string, Rect>)[key];
 export const union = (...rs: Rect[]): Rect => {
@@ -24,7 +32,7 @@ type Cam = { cx: number; cy: number; s: number };
 
 function camFor(r: Rect | null, maxZoom: number): Cam {
   if (!r) return { cx: VW / 2, cy: VH / 2, s: 1 };
-  const s = Math.max(1, Math.min(maxZoom, VW / (r.w * K * 1.35), VH / (r.h * K * 1.35)));
+  const s = Math.max(1, Math.min(maxZoom, VW / (r.w * K * 1.2), VH / (r.h * K * 1.2)));
   const clamp = (v: number, half: number, size: number) => Math.min(size - half, Math.max(half, v));
   return {
     cx: clamp((r.x + r.w / 2) * K, VW / 2 / s, VW),
@@ -34,7 +42,7 @@ function camFor(r: Rect | null, maxZoom: number): Cam {
 }
 
 export interface ShotProps {
-  /** Screenshots in order; each one fades in at its frame. */
+  /** Screenshots in order; each one cuts in at its frame, like the UI reacting to a click. */
   images: { shot: ShotName; from: number }[];
   /** Camera targets: null = whole page. Each move starts at its frame. */
   focus: { from: number; rect: Rect | null; zoom?: number }[];
@@ -44,7 +52,7 @@ export interface ShotProps {
 }
 
 export function Shot({ images, focus, cursor, caption }: ShotProps) {
-  const f = useCurrentFrame();
+  const f = useT();
 
   // Camera: ease from the previous target to the current one.
   let cam = camFor(focus[0].rect, focus[0].zoom ?? 2.2);
@@ -64,7 +72,7 @@ export function Shot({ images, focus, cursor, caption }: ShotProps) {
           <Img
             key={im.shot}
             src={staticFile(`shots/${im.shot}.png`)}
-            style={{ position: 'absolute', inset: 0, width: VW, height: VH, opacity: interpolate(f, [im.from, im.from + 8], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }) }}
+            style={{ position: 'absolute', inset: 0, width: VW, height: VH, opacity: f >= im.from ? 1 : 0 }}
           />
         ))}
       </div>
@@ -90,13 +98,11 @@ function Cursor({ points, frame, toScreen }: { points: NonNullable<ShotProps['cu
   const opacity = interpolate(frame, [points[0].at, points[0].at + 6], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   return (
     <>
-      {since < 18 && (
-        <div style={{
-          position: 'absolute', left: s.x, top: s.y, width: 0, height: 0,
-          boxShadow: `0 0 0 ${interpolate(since, [0, 18], [6, 46])}px rgba(31, 111, 235, ${interpolate(since, [0, 18], [0.45, 0])})`, borderRadius: '50%',
-        }} />
-      )}
-      <svg width="38" height="38" viewBox="0 0 24 24" style={{ position: 'absolute', left: s.x - 4, top: s.y - 3, opacity, transform: `scale(${press})`, transformOrigin: '4px 3px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.35))' }}>
+      {since < 18 && (() => {
+        const r = interpolate(since, [0, 18], [8, 42]);
+        return <div style={{ position: 'absolute', left: s.x - r, top: s.y - r, width: r * 2, height: r * 2, borderRadius: '50%', background: `rgba(31, 111, 235, ${interpolate(since, [0, 18], [0.35, 0])})` }} />;
+      })()}
+      <svg width="38" height="38" viewBox="0 0 24 24" style={{ position: 'absolute', left: s.x - 6.3, top: s.y - 4.75, opacity, transform: `scale(${press})`, transformOrigin: '6.3px 4.75px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.35))' }}>
         <path d="M4 3l15 7.2-6.4 1.6 3.9 7.2-2.6 1.4-3.9-7.2L5.2 17z" fill="#111" stroke="#fff" strokeWidth="1.4" strokeLinejoin="round" />
       </svg>
     </>
@@ -104,7 +110,7 @@ function Cursor({ points, frame, toScreen }: { points: NonNullable<ShotProps['cu
 }
 
 export function Caption({ text, frame }: { text: string; frame: number }) {
-  const t = interpolate(frame, [6, 20], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease });
+  const t = interpolate(frame, [3, 13], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease });
   return (
     <div style={{ position: 'absolute', left: 0, right: 0, bottom: 64, display: 'flex', justifyContent: 'center', opacity: t, transform: `translateY(${(1 - t) * 16}px)` }}>
       <div style={{

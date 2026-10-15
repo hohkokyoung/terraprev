@@ -1,111 +1,140 @@
 import type { ReactNode } from 'react';
-import { AbsoluteFill, Easing, interpolate, Series, useCurrentFrame, useVideoConfig } from 'remotion';
-import { at, Caption, Shot, union } from './Shot.tsx';
+import { AbsoluteFill, Easing, interpolate, Series, useVideoConfig } from 'remotion';
+import { at, Caption, PACE, Shot, union, useT, type ShotName } from './Shot.tsx';
 
-export const FPS = 30;
-const FADE = 10; // crossfade between scenes, in frames
+// Scene timings below are in 30 fps units (see useT); the video renders at FPS.
+export const FPS = 60;
+const FADE = 8; // crossfade between scenes
 
-const diagram = { x: 410, y: 150, w: 640, h: 650 };
+const diagram = { x: 420, y: 150, w: 620, h: 560 };
+
+// The slider drag: capture.ts saved one shot per step of a real drag (drag-0 … drag-8).
+const DRAG = Array.from({ length: 9 }, (_, i) => `drag-${i}` as ShotName);
+const DRAG_START = 26;
+const DRAG_STEP = 3;
+// The track sits 36px below the top of its .slider row; the row moves down once a value is set.
+const dragPoint = (i: number) => ({ x: at(DRAG[i], 'cursor').x, y: at(DRAG[i], 'slider').y + 36 });
 
 const SCENES: { frames: number; node: ReactNode }[] = [
-  { frames: 80, node: <Intro /> },
-  { frames: 105, node: <Terminal /> },
+  { frames: 55, node: <Intro /> },
+  { frames: 75, node: <Terminal /> },
   {
-    frames: 110,
-    node: <Shot images={[{ shot: 'overview', from: 0 }]} focus={[{ from: 0, rect: null }, { from: 25, rect: diagram, zoom: 1.5 }]} caption="Your architecture, drawn from terraform.tfstate" />,
+    frames: 80,
+    node: <Shot images={[{ shot: 'overview', from: 0 }]} focus={[{ from: 0, rect: null }, { from: 16, rect: diagram, zoom: 1.5 }]} caption="Your architecture, drawn from terraform.tfstate" />,
   },
   {
     frames: 100,
     node: (
+      // Into the charts: the category bar and legend, then the per-resource bars.
       <Shot
         images={[{ shot: 'overview', from: 0 }]}
-        focus={[{ from: 0, rect: diagram, zoom: 1.5 }, { from: 12, rect: { x: 1220, y: 0, w: 380, h: 470 }, zoom: 2 }]}
+        focus={[
+          { from: 0, rect: diagram, zoom: 1.5 },
+          { from: 6, rect: union(at('overview', 'stackbar'), at('overview', 'legend')), zoom: 3 },
+          { from: 50, rect: at('overview', 'costrows'), zoom: 2.6 },
+        ]}
         caption="Monthly cost from AWS's public price list"
       />
     ),
   },
   {
-    frames: 130,
+    frames: 95,
     node: (
       <Shot
-        images={[{ shot: 'overview', from: 0 }, { shot: 'select', from: 40 }]}
-        focus={[{ from: 0, rect: null }, { from: 48, rect: union(at('select', 'head'), at('select', 'lines')), zoom: 1.9 }]}
-        cursor={[{ at: 4, x: 900, y: 480 }, { at: 36, x: 537, y: 605, click: true }]}
+        images={[{ shot: 'overview', from: 0 }, { shot: 'select', from: 28 }]}
+        focus={[{ from: 0, rect: null }, { from: 32, rect: union(at('select', 'head'), at('select', 'lines')), zoom: 1.9 }]}
+        cursor={[{ at: 2, x: 900, y: 480 }, { at: 24, x: 537, y: 605, click: true }]}
         caption="Click anything to see the cost, line by line"
+      />
+    ),
+  },
+  {
+    frames: 95,
+    node: (
+      <Shot
+        images={DRAG.map((shot, i) => ({ shot, from: i === 0 ? 0 : DRAG_START + i * DRAG_STEP }))}
+        focus={[{ from: 0, rect: union(at('drag-8', 'slider'), at('drag-8', 'total')), zoom: 2 }]}
+        cursor={[
+          { at: 2, x: 1320, y: 440 },
+          { at: 20, ...dragPoint(0), click: true },
+          ...DRAG.slice(1).map((_, i) => ({ at: DRAG_START + (i + 1) * DRAG_STEP, ...dragPoint(i + 1) })),
+        ]}
+        caption="Usage-based costs follow your sliders"
       />
     ),
   },
   {
     frames: 120,
     node: (
+      // Cuts land on the frame each click does: toggle on (flow-1), then the resource picked (flow).
       <Shot
-        images={[{ shot: 'usage', from: 0 }, { shot: 'usage-max', from: 58 }]}
-        focus={[{ from: 0, rect: union(at('usage', 'slider'), at('usage', 'total')), zoom: 2 }]}
-        cursor={[{ at: 4, x: 1320, y: 420 }, { at: 30, x: 1250, y: 332, click: true }, { at: 58, x: 1578, y: 332 }]}
-        caption="Usage-based costs follow your sliders"
-      />
-    ),
-  },
-  {
-    frames: 140,
-    node: (
-      <Shot
-        images={[{ shot: 'overview', from: 0 }, { shot: 'flow', from: 44 }]}
-        focus={[{ from: 0, rect: null }, { from: 52, rect: { x: 240, y: 630, w: 560, h: 110 }, zoom: 2.1 }, { from: 98, rect: { x: 1225, y: 740, w: 375, h: 100 }, zoom: 2.1 }]}
-        cursor={[{ at: 4, x: 700, y: 420 }, { at: 20, x: 303, y: 100, click: true }, { at: 42, x: 712, y: 682, click: true }]}
+        images={[{ shot: 'flow-0', from: 0 }, { shot: 'flow-1', from: 16 }, { shot: 'flow', from: 40 }]}
+        focus={[{ from: 0, rect: null }, { from: 46, rect: { x: 240, y: 630, w: 560, h: 110 }, zoom: 2.1 }, { from: 82, rect: { x: 1225, y: 740, w: 375, h: 100 }, zoom: 2.1 }]}
+        cursor={[{ at: 2, x: 700, y: 420 }, { at: 16, x: 303, y: 100, click: true }, { at: 23, x: 303, y: 100 }, { at: 40, x: 712, y: 682, click: true }]}
         caption="Trace every path that can reach a resource"
       />
     ),
   },
   {
-    frames: 105,
+    frames: 75,
     node: (
       <Shot
         images={[{ shot: 'access', from: 0 }]}
-        focus={[{ from: 0, rect: null }, { from: 26, rect: { x: 560, y: 120, w: 540, h: 135 }, zoom: 2.1 }]}
-        cursor={[{ at: 2, x: 900, y: 420 }, { at: 22, x: 842, y: 237, click: true }]}
+        focus={[{ from: 0, rect: null }, { from: 18, rect: { x: 560, y: 120, w: 540, h: 135 }, zoom: 2.1 }]}
+        cursor={[{ at: 2, x: 900, y: 420 }, { at: 16, x: 842, y: 237, click: true }]}
         caption="IAM roles and security groups, on demand"
       />
     ),
   },
   {
-    frames: 105,
+    frames: 75,
     node: (
       <Shot
         images={[{ shot: 'report', from: 0 }]}
-        focus={[{ from: 0, rect: null }, { from: 22, rect: union(at('report', 'title'), at('report', 'kpis')), zoom: 1.6 }]}
+        focus={[{ from: 0, rect: null }, { from: 12, rect: union(at('report', 'title'), at('report', 'kpis')), zoom: 1.6 }]}
         caption="A CTO-ready brief, as Markdown or PDF"
       />
     ),
   },
   {
-    frames: 105,
+    frames: 85,
+    node: (
+      <Shot
+        images={[{ shot: 'report-cost', from: 0 }]}
+        focus={[{ from: 0, rect: at('report-cost', 'split'), zoom: 1.6 }, { from: 14, rect: at('report-cost', 'catbars'), zoom: 2.6 }]}
+        caption="What drives the bill, by category"
+      />
+    ),
+  },
+  {
+    frames: 70,
     node: (
       <Shot
         images={[{ shot: 'findings', from: 0 }]}
-        focus={[{ from: 0, rect: { x: 417, y: 60, w: 766, h: 460 } }, { from: 30, rect: { x: 417, y: 90, w: 766, h: 330 } }]}
+        focus={[{ from: 0, rect: { x: 417, y: 60, w: 766, h: 460 } }, { from: 16, rect: { x: 417, y: 90, w: 766, h: 330 } }]}
         caption="Findings, each with a concrete fix"
       />
     ),
   },
   {
-    frames: 85,
-    node: <Shot images={[{ shot: 'dark', from: 0 }]} focus={[{ from: 0, rect: null }, { from: 15, rect: diagram, zoom: 1.3 }]} caption="Light or dark, fully offline" />,
+    frames: 60,
+    node: <Shot images={[{ shot: 'dark', from: 0 }]} focus={[{ from: 0, rect: null }, { from: 8, rect: diagram, zoom: 1.3 }]} caption="Light or dark, offline once prices are cached" />,
   },
-  { frames: 110, node: <Outro /> },
+  { frames: 80, node: <Outro /> },
 ];
 
-export const DURATION = SCENES.reduce((n, s) => n + s.frames, 0) - FADE * (SCENES.length - 1);
+const real = (t: number) => Math.round((t * FPS) / 30 / PACE);
+export const DURATION = real(SCENES.reduce((n, s) => n + s.frames, 0) - FADE * (SCENES.length - 1));
 
 export function Demo() {
   const { width } = useVideoConfig();
   return (
     <AbsoluteFill style={{ background: '#121316' }}>
-      {/* Laid out at 1080p and scaled, so the GIF composition is the same video, smaller. */}
+      {/* Laid out at 1080p and scaled, so other sizes render the same video. */}
       <div style={{ width: 1920, height: 1080, transform: `scale(${width / 1920})`, transformOrigin: '0 0', position: 'relative' }}>
         <Series>
           {SCENES.map((s, i) => (
-            <Series.Sequence key={i} durationInFrames={s.frames} offset={i === 0 ? 0 : -FADE}>
+            <Series.Sequence key={i} durationInFrames={real(s.frames)} offset={i === 0 ? 0 : -real(FADE)}>
               <FadeIn>{s.node}</FadeIn>
             </Series.Sequence>
           ))}
@@ -116,13 +145,13 @@ export function Demo() {
 }
 
 function FadeIn({ children }: { children: ReactNode }) {
-  const f = useCurrentFrame();
+  const f = useT();
   return <AbsoluteFill style={{ opacity: interpolate(f, [0, FADE], [0, 1], { extrapolateRight: 'clamp' }) }}>{children}</AbsoluteFill>;
 }
 
 const ease = Easing.bezier(0.45, 0, 0.2, 1);
 const rise = (f: number, start: number) => {
-  const t = interpolate(f, [start, start + 18], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease });
+  const t = interpolate(f, [start, start + 14], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: ease });
   return { opacity: t, transform: `translateY(${(1 - t) * 24}px)` };
 };
 
@@ -136,14 +165,14 @@ function Mark({ size }: { size: number }) {
 }
 
 function Intro() {
-  const f = useCurrentFrame();
+  const f = useT();
   return (
     <AbsoluteFill style={{ background: '#121316', color: '#ecebe6', fontFamily: 'Inter, sans-serif', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 22, ...rise(f, 4) }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 22, ...rise(f, 2) }}>
         <Mark size={72} />
         <span style={{ font: '700 104px Inter', letterSpacing: '-0.035em' }}>terraprev</span>
       </div>
-      <div style={{ font: '500 40px/1.35 Inter', color: '#b4b3ad', letterSpacing: '-0.01em', textAlign: 'center', ...rise(f, 16) }}>
+      <div style={{ font: '500 40px/1.35 Inter', color: '#b4b3ad', letterSpacing: '-0.01em', textAlign: 'center', ...rise(f, 9) }}>
         See your Terraform stack and what it costs on AWS,
         <br />
         every time you apply.
@@ -153,15 +182,15 @@ function Intro() {
 }
 
 const LINES: { at: number; text: string; color?: string }[] = [
-  { at: 34, text: 'Apply complete! Resources: 20 added, 0 changed, 0 destroyed.', color: '#8fcf9c' },
-  { at: 48, text: '[terraprev] serial 7 · 20 resources · ~$108.36/mo', color: '#ecebe6' },
-  { at: 56, text: '            → out/terraprev.html', color: '#8ab4ff' },
+  { at: 26, text: 'Apply complete! Resources: 20 added, 0 changed, 0 destroyed.', color: '#8fcf9c' },
+  { at: 36, text: '[terraprev] serial 7 · 20 resources · ~$108.36/mo', color: '#ecebe6' },
+  { at: 42, text: '            → out/terraprev.html', color: '#8ab4ff' },
 ];
 
 function Terminal() {
-  const f = useCurrentFrame();
+  const f = useT();
   const cmd = 'tf apply';
-  const typed = cmd.slice(0, Math.max(0, Math.floor((f - 10) / 2.5)));
+  const typed = cmd.slice(0, Math.max(0, Math.floor((f - 6) / 2)));
   return (
     <AbsoluteFill style={{ background: '#121316', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ width: 1360, borderRadius: 18, background: '#1c1d22', border: '1px solid #2a2b31', boxShadow: '0 30px 80px rgba(0,0,0,0.45)', overflow: 'hidden', ...rise(f, 0) }}>
@@ -172,7 +201,7 @@ function Terminal() {
           <div>
             <span style={{ color: '#7c7c78' }}>~/my-stack $ </span>
             {typed}
-            {f < 34 && <span style={{ opacity: Math.floor(f / 8) % 2 ? 0 : 1 }}>▍</span>}
+            {f < 26 && <span style={{ opacity: Math.floor(f / 8) % 2 ? 0 : 1 }}>▍</span>}
           </div>
           {LINES.filter((l) => f >= l.at).map((l) => <div key={l.text} style={{ color: l.color, whiteSpace: 'pre' }}>{l.text}</div>)}
         </div>
@@ -183,19 +212,19 @@ function Terminal() {
 }
 
 function Outro() {
-  const f = useCurrentFrame();
+  const f = useT();
   return (
     <AbsoluteFill style={{ background: '#121316', color: '#ecebe6', fontFamily: 'Inter, sans-serif', alignItems: 'center', justifyContent: 'center', gap: 40 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 18, ...rise(f, 6) }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18, ...rise(f, 3) }}>
         <Mark size={56} />
         <span style={{ font: '700 80px Inter', letterSpacing: '-0.035em' }}>terraprev</span>
       </div>
-      <div style={{ display: 'flex', gap: 18, ...rise(f, 16) }}>
+      <div style={{ display: 'flex', gap: 18, ...rise(f, 10) }}>
         {['No AWS account', 'No credentials', 'Nothing uploaded'].map((t) => (
           <span key={t} style={{ font: '600 30px Inter', padding: '12px 24px', borderRadius: 999, border: '1px solid #3a3b42', color: '#b4b3ad' }}>{t}</span>
         ))}
       </div>
-      <div style={{ font: '400 34px "JetBrains Mono", monospace', color: '#8ab4ff', background: '#1c1d22', border: '1px solid #2a2b31', padding: '18px 32px', borderRadius: 12, ...rise(f, 28) }}>
+      <div style={{ font: '400 34px "JetBrains Mono", monospace', color: '#8ab4ff', background: '#1c1d22', border: '1px solid #2a2b31', padding: '18px 32px', borderRadius: 12, ...rise(f, 17) }}>
         npm run snapshot -- --open
       </div>
     </AbsoluteFill>

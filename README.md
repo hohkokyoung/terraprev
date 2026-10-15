@@ -2,9 +2,7 @@
 
 **See your Terraform stack's architecture and AWS cost, every time you apply.**
 
-[![terraprev demo: diagram, cost breakdown, usage sliders, data flow, IAM, CTO brief](docs/demo.gif)](docs/demo.mp4)
-
-<sub>▶ [Full-resolution video](docs/demo.mp4)</sub>
+https://github.com/user-attachments/assets/7b04d45c-6bab-4694-8a38-c2935a35b517
 
 terraprev reads your `terraform.tfstate` and runs entirely on your machine: no AWS account, no credentials, nothing uploaded. It works with real AWS and with emulators such as LocalStack or floci, showing what the same stack would cost on real AWS.
 
@@ -28,7 +26,7 @@ npm install
 npm run snapshot -- --state ../my-stack/terraform.tfstate --open
 ```
 
-The first run downloads AWS price lists (about a minute). After that, builds take ~30 ms and work offline.
+The first run downloads AWS price lists (about a minute) and caches them. After that, builds take ~30 ms and need no network.
 
 **Rebuild on every apply.** `bin/tf` is a drop-in wrapper for `terraform`: it runs the real command, then rebuilds the snapshot whenever state may have changed. A failed snapshot never fails your apply.
 
@@ -65,6 +63,8 @@ Defaults live in `terraprev.config.json`: `stateFile`, `defaultRegion`, `port` a
 
 **Findings.** Plain rules over state attributes, with no AI and no guessing. For example: RDS backups disabled (`backup_retention_period = 0`), storage not encrypted, IMDSv1 allowed, one NAT gateway for several AZs, non-web ports open to `0.0.0.0/0`, credentials hard-coded in user data.
 
+**Offline use.** Only the price lists need the internet: once on the first run, then a refresh every 7 days (`priceCacheDays`). If a refresh fails, the cached prices are used; `--offline` never tries. Everything else works without a connection, apart from the links to AWS pricing pages and raw price files.
+
 **Privacy.** The only network requests are downloads of AWS's public price lists. Values Terraform marks as sensitive never reach the page or the reports. The live server listens on `127.0.0.1` only. Snapshots include your resource names and `.tf` blocks, so share them as carefully as the state file.
 
 ## Limitations
@@ -90,4 +90,4 @@ npm run typecheck
 | An AWS display name | `shared/awsNames.ts` |
 | Another cloud | implement `ProviderPricer` in `server/src/pricing/types.ts` |
 
-The demo video is made with [Remotion](https://www.remotion.dev) from screenshots of a real snapshot: `npm run capture` (needs `out/terraprev.html`), then `npm run render` and `npm run render:gif` in `video/`.
+The demo video is made with [Remotion](https://www.remotion.dev) from screenshots of a real snapshot: `npm run capture` (needs `out/terraprev.html`), then `npm run render` in `video/` (writes `video/out/demo.mp4`). To update the README, drag that file into a GitHub issue or comment box and use the link it gives.
