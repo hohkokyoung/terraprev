@@ -15,8 +15,9 @@ const TEXT = { left: 110, width: 450 };
 const WIN = { left: 620, top: 172, w: 1200, bar: 44 };
 const VIEW = { w: WIN.w, h: Math.round((WIN.w * 9) / 16) };
 
-const vpc = { x: 280, y: 260, w: 740, h: 460 }; // the VPC with its subnets
-const traffic = { x: 300, y: 620, w: 720, h: 150 }; // Internet → ALB → ASG
+// The diagram beats use close-ups (shots 'diagram', 'dark') captured at the app's own zoom, so boxes stay crisp.
+const vpc = union(at('diagram', 'vpc'), at('diagram', 'internet')); // the VPC with its subnets
+const traffic = union(at('diagram', 'internet'), at('diagram', 'alb'), at('diagram', 'asg')); // Internet → ALB → ASG
 
 // The slider drag: capture.ts saved one shot per step of a real drag (drag-0 … drag-8).
 const DRAG = Array.from({ length: 9 }, (_, i) => `drag-${i}` as ShotName);
@@ -40,7 +41,7 @@ const BEATS: Beat[] = [
     frames: 95,
     title: 'Your architecture, drawn from state',
     body: 'Cloud → VPC → subnets → resources, with traffic arrows from real relationships.',
-    view: shot({ images: [{ shot: 'overview', from: 0 }], focus: [{ from: 0, rect: null }, { from: 12, rect: vpc, zoom: 1.7 }, { from: 52, rect: traffic, zoom: 2.2 }] }),
+    view: shot({ images: [{ shot: 'diagram', from: 0 }], focus: [{ from: 0, rect: null }, { from: 12, rect: vpc, zoom: 1.7 }, { from: 52, rect: traffic, zoom: 2.4 }] }),
   },
   {
     frames: 115,

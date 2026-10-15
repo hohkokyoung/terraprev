@@ -59,6 +59,16 @@ const node = (label: string) => `xpath///div[contains(@class,"rnode")][.//span[@
 
 await shot('overview', { total: '.total', cost: '.side', canvas: '.canvas', db: node('app-db'), stackbar: '.stackbar', legend: '.legend', costrows: '.costrows' });
 
+// Close-up for the architecture beat: the app's own zoom renders the boxes larger and crisp, where
+// zooming the video into the overview would only magnify small text. Zoom steps are 1.2× about the
+// canvas centre, so two in and two out lands back on the overview for the shots below.
+const DIAGRAM = { vpc: '.gnode--vpc', internet: '.rnode--internet', alb: node('web-alb'), asg: node('app-asg') };
+await click(page, '.react-flow__controls-zoomin');
+await click(page, '.react-flow__controls-zoomin');
+await shot('diagram', DIAGRAM);
+await click(page, '.react-flow__controls-zoomout');
+await click(page, '.react-flow__controls-zoomout');
+
 await click(page, node('app-db'));
 await shot('select', { db: node('app-db'), head: '.inspector__head', lines: '.lines' });
 
@@ -105,10 +115,11 @@ await shot('findings', { finding: '.finding' });
 await click(page, '.report__close');
 
 await click(page, '::-p-text(Dark)');
-await click(page, '.react-flow__controls-zoomout');
+// Closing the report refits the diagram; one step in matches the light close-up.
+await click(page, '.react-flow__controls-zoomin');
 await page.mouse.click(60, 400); // empty canvas: clear the selection
 await click(page, '.tabs ::-p-text(Cost)');
-await shot('dark', { canvas: '.canvas' });
+await shot('dark', { canvas: '.canvas', ...DIAGRAM });
 
 writeFileSync(join(import.meta.dirname, 'src', 'shots.json'), JSON.stringify({ width: W, height: H, shots }, null, 2) + '\n');
 await browser.close();
