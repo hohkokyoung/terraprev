@@ -123,19 +123,28 @@ const SCENES: { frames: number; node: ReactNode }[] = [
   { frames: 80, node: <Outro /> },
 ];
 
-const real = (t: number) => Math.round((t * FPS) / 30 / PACE);
-export const DURATION = real(SCENES.reduce((n, s) => n + s.frames, 0) - FADE * (SCENES.length - 1));
+/** The README's autoplaying loop: cost-chart zooms, slider drag, data flow. Indexes into SCENES. */
+export const TEASER = [3, 5, 6];
+export const TEASER_FPS = 20;
 
-export function Demo() {
-  const { width } = useVideoConfig();
+const ALL = SCENES.map((_, i) => i);
+const real = (t: number, fps: number) => Math.round((t * fps) / 30 / PACE);
+export const durationOf = (pick: number[], fps: number) =>
+  real(pick.reduce((n, i) => n + SCENES[i].frames, 0) - FADE * (pick.length - 1), fps);
+export const DURATION = durationOf(ALL, FPS);
+
+export function Demo({ pick = ALL }: { pick?: number[] }) {
+  const { width, fps } = useVideoConfig();
   return (
     <AbsoluteFill style={{ background: '#121316' }}>
-      {/* Laid out at 1080p and scaled, so other sizes render the same video. */}
+      {/* Laid out at 1080p and scaled, so other sizes render the same video. Sequences use layout="none":
+          their default wrapper is sized to the composition, which would scale twice. */}
       <div style={{ width: 1920, height: 1080, transform: `scale(${width / 1920})`, transformOrigin: '0 0', position: 'relative' }}>
         <Series>
-          {SCENES.map((s, i) => (
-            <Series.Sequence key={i} durationInFrames={real(s.frames)} offset={i === 0 ? 0 : -real(FADE)}>
-              <FadeIn>{s.node}</FadeIn>
+          {pick.map((s, i) => (
+            <Series.Sequence key={s} layout="none" durationInFrames={real(SCENES[s].frames, fps)} offset={i === 0 ? 0 : -real(FADE, fps)}>
+              {/* The first scene of a loop starts on screen: no fade in from black. */}
+              <FadeIn skip={i === 0 && pick !== ALL}>{SCENES[s].node}</FadeIn>
             </Series.Sequence>
           ))}
         </Series>
@@ -144,9 +153,11 @@ export function Demo() {
   );
 }
 
-function FadeIn({ children }: { children: ReactNode }) {
+/** One scene's 1080p box. Sized explicitly: percentage sizes resolved against the composition, not the 1080p stage. */
+function FadeIn({ children, skip }: { children: ReactNode; skip?: boolean }) {
   const f = useT();
-  return <AbsoluteFill style={{ opacity: interpolate(f, [0, FADE], [0, 1], { extrapolateRight: 'clamp' }) }}>{children}</AbsoluteFill>;
+  const opacity = skip ? 1 : interpolate(f, [0, FADE], [0, 1], { extrapolateRight: 'clamp' });
+  return <div style={{ position: 'absolute', left: 0, top: 0, width: 1920, height: 1080, overflow: 'hidden', opacity }}>{children}</div>;
 }
 
 const ease = Easing.bezier(0.45, 0, 0.2, 1);

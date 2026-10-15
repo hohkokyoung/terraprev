@@ -2,7 +2,7 @@
 
 **See your Terraform stack's architecture and AWS cost, every time you apply.**
 
-https://github.com/user-attachments/assets/7b04d45c-6bab-4694-8a38-c2935a35b517
+[![terraprev: cost charts, usage sliders and data flow tracing](docs/teaser.webp)](#demo)
 
 terraprev reads your `terraform.tfstate` and runs entirely on your machine: no AWS account, no credentials, nothing uploaded. It works with real AWS and with emulators such as LocalStack or floci, showing what the same stack would cost on real AWS.
 
@@ -15,6 +15,12 @@ terraprev reads your `terraform.tfstate` and runs entirely on your machine: no A
 - **Data flow.** Highlight every path that can reach a resource, e.g. *Internet → ALB → ASG → RDS*.
 - **CTO brief.** Executive summary, cost drivers, findings with recommendations and security posture, as Markdown (with a Mermaid diagram) or PDF.
 - **Snapshot file.** One self-contained HTML page that opens offline, plus an optional one-page diagram PDF. The same inputs always give byte-identical output.
+
+## Demo
+
+The full 40-second walkthrough, from `terraform apply` to the CTO brief:
+
+https://github.com/user-attachments/assets/7b04d45c-6bab-4694-8a38-c2935a35b517
 
 ## Quick start
 
@@ -90,4 +96,4 @@ npm run typecheck
 | An AWS display name | `shared/awsNames.ts` |
 | Another cloud | implement `ProviderPricer` in `server/src/pricing/types.ts` |
 
-The demo video is made with [Remotion](https://www.remotion.dev) from screenshots of a real snapshot: `npm run capture` (needs `out/terraprev.html`), then `npm run render` in `video/` (writes `video/out/demo.mp4`). To update the README, drag that file into a GitHub issue or comment box and use the link it gives.
+The demo video is made with [Remotion](https://www.remotion.dev) from screenshots of a real snapshot: `npm run capture` (needs `out/terraprev.html`), then, in `video/`, `npm run teaser` (the looping `docs/teaser.webp` at the top of this page) and `npm run render` (the full video, `video/out/demo.mp4`). GitHub only plays video it hosts, so to update the Demo section drag that MP4 into a GitHub issue or comment box and use the link it gives.
