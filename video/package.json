@@ -1,0 +1,24 @@
+{
+  "name": "terraprev-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "capture": "node capture.ts",
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts Demo ../docs/demo.mp4 --crf=26",
+    "render:gif": "remotion render src/index.ts DemoGif ../docs/demo.gif --codec=gif --every-nth-frame=3"
+  },
+  "dependencies": {
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "@remotion/cli": "4.0.535",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.535"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "puppeteer-core": "25.14.0",
+    "typescript": "5.9.3"
+  }
+}
