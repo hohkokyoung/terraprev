@@ -41,7 +41,7 @@ const BEATS: Beat[] = [
     frames: 95,
     title: 'Your architecture, drawn from state',
     body: 'Cloud → VPC → subnets → resources, with traffic arrows from real relationships.',
-    view: shot({ images: [{ shot: 'diagram', from: 0 }], focus: [{ from: 0, rect: null }, { from: 12, rect: vpc, zoom: 1.7 }, { from: 52, rect: traffic, zoom: 2.4 }] }),
+    view: shot({ images: [{ shot: 'diagram', from: 0 }], focus: [{ from: 0, rect: null }, { from: 14, rect: traffic, zoom: 2 }] }),
   },
   {
     frames: 115,
