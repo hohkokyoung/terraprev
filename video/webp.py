@@ -12,5 +12,5 @@ src, out, fps = Path(sys.argv[1]), Path(sys.argv[2]), int(sys.argv[3])
 frames = [Image.open(p).convert('RGB') for p in sorted(src.glob('*.jpeg'))]
 if not frames:
     sys.exit(f'no frames in {src}')
-frames[0].save(out, save_all=True, append_images=frames[1:], duration=round(1000 / fps), loop=0, quality=80, method=6)
+frames[0].save(out, save_all=True, append_images=frames[1:], duration=round(1000 / fps), loop=0, quality=75, method=6)
 print(f'{len(frames)} frames -> {out} ({out.stat().st_size / 1e6:.1f} MB)')

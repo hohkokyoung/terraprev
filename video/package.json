@@ -5,7 +5,7 @@
   "scripts": {
     "capture": "node capture.ts",
     "studio": "remotion studio src/index.ts",
-    "render": "remotion render src/index.ts Demo out/demo.mp4 --crf=24 --x264-preset=slow",
+    "render": "remotion render src/index.ts Demo out/demo.mp4 --crf=20 --x264-preset=slow",
     "teaser": "remotion render src/index.ts Teaser out/teaser --sequence --image-format=jpeg --jpeg-quality=92 && python webp.py out/teaser ../docs/teaser.webp 20"
   },
   "dependencies": {

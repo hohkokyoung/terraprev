@@ -2,7 +2,7 @@
 
 **See your Terraform stack's architecture and AWS cost, every time you apply.**
 
-[![terraprev: cost charts, usage sliders and data flow tracing](docs/teaser.webp)](#demo)
+[![terraprev feature tour: apply, diagram, cost, line items, usage sliders, data flow, IAM, CTO brief, findings, dark mode](docs/teaser.webp)](#demo)
 
 terraprev reads your `terraform.tfstate` and runs entirely on your machine: no AWS account, no credentials, nothing uploaded. It works with real AWS and with emulators such as LocalStack or floci, showing what the same stack would cost on real AWS.
 
