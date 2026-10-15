@@ -2,21 +2,40 @@
 
 **See your Terraform stack's architecture and AWS cost, every time you apply.**
 
+Point terraprev at a `terraform.tfstate` and you get:
+
+1. **An architecture diagram** of your VPCs, subnets and resources, with the traffic between them.
+2. **A monthly AWS cost estimate**, line by line, from AWS's official price list.
+3. **A brief for your CTO**: summary, cost drivers, risks and how to fix them, as Markdown or PDF.
+
+It runs on your machine: no AWS account, no credentials, nothing uploaded. It also works with emulators such as LocalStack or floci, showing what the same stack would cost on real AWS.
+
 ![terraprev feature tour: apply, diagram, cost, line items, usage sliders, data flow, IAM, CTO brief, findings, dark mode](docs/teaser.webp)
 
 ▶ [Watch the full walkthrough (40 s, 1080p)](https://github.com/user-attachments/assets/7b04d45c-6bab-4694-8a38-c2935a35b517)
 
-terraprev reads your `terraform.tfstate` and runs entirely on your machine: no AWS account, no credentials, nothing uploaded. It works with real AWS and with emulators such as LocalStack or floci, showing what the same stack would cost on real AWS.
-
 ## Features
 
-- **Architecture diagram.** Cloud → VPC → subnets → resources, laid out automatically. Traffic arrows come from real relationships in state: ALB → ASG, SNS → SQS, SQS → Lambda, security-group rules (`ASG → RDS tcp 5432`).
-- **Monthly cost.** On-demand list prices from the AWS Price List API for your region. Every number links to its SKU and the price file behind it. Anything terraprev can't price is listed as *not priced*, never silently counted as $0.
-- **Usage sliders.** Set Lambda invocations, S3 storage, NAT data and other usage-based charges, and the total follows. An optional switch applies the AWS Always Free tier.
-- **Inspector.** Click any resource for its cost lines, configuration, IAM role and security group rules in plain English, and the `resource {}` block from your `.tf` files.
-- **Data flow.** Highlight every path that can reach a resource, e.g. *Internet → ALB → ASG → RDS*.
-- **CTO brief.** Executive summary, cost drivers, findings with recommendations and security posture, as Markdown (with a Mermaid diagram) or PDF.
-- **Snapshot file.** One self-contained HTML page that opens offline, plus an optional one-page diagram PDF. The same inputs always give byte-identical output.
+### See the architecture
+
+- **Diagram, laid out for you.** Cloud → VPC → subnets → resources. Arrows come from real relationships in state: ALB → ASG, SNS → SQS, SQS → Lambda, security-group rules (`ASG → RDS tcp 5432`).
+- **Data flow.** Pick a resource and every path that can reach it lights up, e.g. *Internet → ALB → ASG → RDS*.
+- **Access in plain English.** Draw a resource's IAM role, policies and security groups on the diagram.
+- **Inspector.** Click anything for its configuration and the `resource {}` block from your `.tf` files.
+
+### Know the cost
+
+- **Monthly estimate** from the AWS Price List API, on-demand prices for your region.
+- **Every dollar explained.** Each line shows quantity × unit price, linked to the SKU and the price file behind it.
+- **Usage sliders** for traffic-based charges (Lambda invocations, S3 storage, NAT data…); the total follows. Optional AWS Always Free tier.
+- **Nothing hidden.** Anything terraprev can't price is listed as *not priced*, never counted as $0.
+
+### Share it
+
+- **CTO brief.** Executive summary, cost drivers, findings and security posture, as Markdown (with a Mermaid diagram) or PDF.
+- **Findings with fixes.** Rule-based checks for disabled backups, unencrypted storage, IMDSv1, open ports and more.
+- **One snapshot file.** A self-contained HTML page that opens offline, plus an optional one-page diagram PDF. The same inputs always give byte-identical files.
+- **Always current.** `bin/tf` rebuilds the snapshot on every apply; live mode updates the page within a second.
 
 ## Quick start
 
