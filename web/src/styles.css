@@ -303,7 +303,7 @@ button { font: inherit; color: inherit; }
 .sources ul { margin: 0 0 8px; padding: 0; list-style: none; font-size: var(--fs-sm); display: grid; gap: 2px; }
 
 /* inspector */
-.inspector__head { --cat: var(--cat-other); padding: 16px; border-bottom: 1px solid var(--line); border-top: 4px solid var(--cat); }
+.inspector__head { --cat: var(--cat-other); padding: 16px; border-bottom: 1px solid var(--line); }
 .inspector__cat { font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--cat); }
 .inspector__head h2 { margin: 2px 0 2px; font-size: var(--fs-xl); font-weight: 600; letter-spacing: -0.015em; word-break: break-word; }
 .inspector__type { color: var(--ink-3); font-size: var(--fs-sm); }
