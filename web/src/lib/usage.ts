@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { CostReport } from '../../../shared/types.ts';
 import { lineCosts } from '../../../shared/cost.ts';
+import { STATIC } from './staticData.ts';
 
 const STORAGE_KEY = 'terraprev.usage.v1';
 const FREE_KEY = 'terraprev.freeTier';
@@ -15,7 +16,7 @@ function readStored(): Record<string, number> {
 
 /** Slider values, keyed by `${address}:${param}` so they survive re-applies. */
 export function useUsage(cost: CostReport | undefined, forceFreeTier = false) {
-  const [overrides, setOverrides] = useState<Record<string, number>>(readStored);
+  const [overrides, setOverrides] = useState<Record<string, number>>(() => STATIC?.usage ?? readStored());
   const [freeTier, setFreeTierState] = useState<boolean>(() => {
     if (forceFreeTier) return true;
     try {

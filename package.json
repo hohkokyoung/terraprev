@@ -4,10 +4,10 @@
   "type": "module",
   "workspaces": ["server", "web"],
   "scripts": {
-    "dev": "sh -c 'npm run dev -w server & npm run dev -w web & wait'",
+    "dev": "node server/src/cli/dev.ts",
     "build": "npm run build -w web",
     "start": "npm run start -w server",
-    "test": "node --test 'server/test/**/*.test.ts'",
+    "test": "node --test \"server/test/**/*.test.ts\"",
     "typecheck": "tsc -p server && tsc -p web",
     "snapshot": "node server/src/cli/build.ts",
     "prices": "node server/src/cli/build.ts --refresh-prices"

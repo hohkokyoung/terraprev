@@ -1,5 +1,6 @@
-import { existsSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { serve } from '@hono/node-server';
@@ -12,6 +13,7 @@ import { AwsOffers } from './pricing/aws/offers.ts';
 import { AwsPricer } from './pricing/aws/pricer.ts';
 import { SourceIndex } from './source/hcl.ts';
 import { labelMap } from './source/labels.ts';
+import { inline, printReport, webTemplate } from './export.ts';
 
 const config = loadConfig();
 
@@ -77,6 +79,28 @@ app.get('/api/source', (c) => {
   if (!address) return c.json({ error: 'address required' }, 400);
   const found = sources.find(address);
   return found ? c.json({ ...found, ...names.get(address) }) : c.json({ error: `No block for ${address} in ${config.stateFile.replace(/\/[^/]+$/, '')}` }, 404);
+});
+
+// The brief as a PDF, printed by headless Chrome and sent as a file: no browser print preview.
+// Body: { theme: 'light' | 'dark', freeTier: boolean, usage: { [key]: number } } (the page's current settings).
+app.post('/api/report.pdf', async (c) => {
+  const snap = snapshot;
+  if (!snap || snap.cost.status !== 'ready') return c.json({ error: 'Prices are still loading; try again in a moment.' }, 503);
+  const body = await c.req.json().catch(() => ({}));
+  const usage = Object.fromEntries(Object.entries(body.usage ?? {}).filter((e): e is [string, number] => typeof e[1] === 'number' && Number.isFinite(e[1])));
+  const dir = mkdtempSync(join(tmpdir(), 'terraprev-'));
+  try {
+    const html = join(dir, 'report.html');
+    const pdf = join(dir, 'report.pdf');
+    writeFileSync(html, inline(await webTemplate(log), { snapshot: snap, sources: {}, usage, generatedAt: new Date().toISOString() }));
+    await printReport(html, pdf, { dark: body.theme === 'dark', freeTier: body.freeTier === true, updatedAt: snap.updatedAt });
+    return c.body(readFileSync(pdf), 200, { 'Content-Type': 'application/pdf' });
+  } catch (err) {
+    log(`report pdf: ${(err as Error).message}`);
+    return c.json({ error: (err as Error).message }, 500);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 app.get('/api/events', (c) =>

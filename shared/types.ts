@@ -226,4 +226,6 @@ export interface StaticBundle {
   /** address → its source blocks, or null when not found in any .tf file. */
   sources: Record<string, SourceResult | null>;
   generatedAt: string;
+  /** Slider values to use instead of the viewer's saved ones (the server-rendered report PDF). */
+  usage?: Record<string, number>;
 }

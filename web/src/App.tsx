@@ -334,7 +334,7 @@ function Ago({ iso, bare }: { iso: string; bare?: boolean }) {
 }
 
 function shortPath(p: string) {
-  const parts = p.split('/');
+  const parts = p.split(/[\\/]/);
   return parts.slice(-2).join('/');
 }
 

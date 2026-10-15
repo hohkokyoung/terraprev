@@ -4,6 +4,7 @@ import type { Snapshot } from '../../../shared/types.ts';
 import { buildReport, renderMarkdown, SEVERITY_LABEL, type Report } from '../../../shared/report.ts';
 import { formatUsd } from '../../../shared/cost.ts';
 import { Diagram } from './Diagram.tsx';
+import { STATIC } from '../lib/staticData.ts';
 
 interface Props {
   snapshot: Snapshot;
@@ -79,6 +80,51 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
     }, 300);
   };
 
+  // Live server: it prints the PDF with headless Chrome and sends the file, so there's no print preview.
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [pdfError, setPdfError] = useState<string>();
+  const downloadPdf = async () => {
+    setPdfBusy(true);
+    setPdfError(undefined);
+    try {
+      const theme = document.documentElement.getAttribute('data-theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      const res = await fetch('/api/report.pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme, freeTier, usage }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`);
+      const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(await res.blob()), download: `${fileBase}.pdf` });
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (err) {
+      setPdfError(`PDF failed: ${(err as Error).message}`);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    // Same pin for Ctrl+P / the browser's own Print, which bypass savePdf.
+    const root = document.documentElement;
+    let pinned = false;
+    const pin = () => {
+      if (root.hasAttribute('data-theme')) return;
+      root.setAttribute('data-theme', matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      pinned = true;
+    };
+    const unpin = () => {
+      if (pinned) root.removeAttribute('data-theme');
+      pinned = false;
+    };
+    window.addEventListener('beforeprint', pin);
+    window.addEventListener('afterprint', unpin);
+    return () => {
+      window.removeEventListener('beforeprint', pin);
+      window.removeEventListener('afterprint', unpin);
+    };
+  }, []);
+
   useEffect(() => {
     if (!autoPrint) return;
     // Headless export: theme from the URL (#report&dark), light by default.
@@ -91,7 +137,14 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
       <div className="report__bar">
         <span className="report__barTitle">Architecture & cost brief</span>
         <span className="report__barHint muted small">Uses your current usage assumptions{freeTier ? ' and free tier' : ''}.</span>
-        <button type="button" onClick={savePdf}>Save as PDF</button>
+        {pdfError && <span className="report__barError small">{pdfError}</span>}
+        {STATIC ? (
+          <button type="button" onClick={savePdf}>Save as PDF</button>
+        ) : (
+          <button type="button" onClick={downloadPdf} disabled={pdfBusy} title="Rendered in the current theme and saved straight to a file">
+            {pdfBusy ? 'Making PDF…' : 'Download PDF'}
+          </button>
+        )}
         <button type="button" onClick={downloadMd} title="Markdown with a Mermaid diagram: renders in GitHub, Notion and Confluence">Download Markdown</button>
         <button type="button" onClick={copyMd}>{copied ? 'Copied' : 'Copy Markdown'}</button>
         <button type="button" className="report__close" onClick={onClose} aria-label="Close report">✕</button>
@@ -248,7 +301,7 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
           )}
         </section>
 
-        <section className="doc__break">
+        <section>
           <h2>Findings & recommendations</h2>
           <div className="sevcounts">
             {(['high', 'medium', 'low', 'info', 'good'] as const).map((s) => (
@@ -296,7 +349,7 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
           )}
         </section>
 
-        <section className="doc__break">
+        <section>
           <h2>Appendix</h2>
           <h3>Resource inventory</h3>
           <table className="doc__table">
