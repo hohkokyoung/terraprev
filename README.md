@@ -2,7 +2,7 @@
 
 **See your Terraform stack's architecture and AWS cost, every time you apply.**
 
-[![terraprev feature tour: apply, diagram, cost, line items, usage sliders, data flow, IAM, CTO brief, findings, dark mode](docs/teaser.webp)](https://github.com/user-attachments/assets/7b04d45c-6bab-4694-8a38-c2935a35b517)
+![terraprev feature tour: apply, diagram, cost, line items, usage sliders, data flow, IAM, CTO brief, findings, dark mode](docs/teaser.webp)
 
 ▶ [Watch the full walkthrough (40 s, 1080p)](https://github.com/user-attachments/assets/7b04d45c-6bab-4694-8a38-c2935a35b517)
 
