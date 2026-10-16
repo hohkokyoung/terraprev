@@ -10,6 +10,13 @@ export interface Config {
   defaultRegion: string;
   priceCacheDays: number;
   cacheDir: string;
+  /** One cost-history file per stack (state lineage). */
+  historyDir: string;
+  /**
+   * The folder the live page may pick other state files and plans from (Compare / Plan). Defaults to the
+   * state file's folder; set it to e.g. "envs" to compare envs/prod with envs/staging. Nothing outside it is read.
+   */
+  compareRoot: string;
 }
 
 export function loadConfig(): Config {
@@ -22,5 +29,7 @@ export function loadConfig(): Config {
     defaultRegion: process.env.TERRAPREV_REGION ?? raw.defaultRegion ?? 'us-east-1',
     priceCacheDays: raw.priceCacheDays ?? 7,
     cacheDir: resolve(ROOT, '.cache'),
+    historyDir: resolve(ROOT, process.env.TERRAPREV_HISTORY ?? raw.historyDir ?? 'history'),
+    compareRoot: resolve(ROOT, process.env.TERRAPREV_COMPARE_ROOT ?? raw.compareRoot ?? dirname(stateFile)),
   };
 }

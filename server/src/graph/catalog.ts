@@ -2,6 +2,7 @@
 // Unknown types still render via `fallbackInfo`; this table only makes them nicer.
 
 import type { Category, TfResource } from '../../../shared/types.ts';
+import { isPlaceholder } from '../state/plan.ts';
 
 export interface Link {
   /** Identifier(s) of the source (ARN, id, name, or a string containing one). */
@@ -230,6 +231,6 @@ export const UTILITY_PROVIDERS = new Set(['random', 'archive', 'null', 'time', '
 export function displayName(r: TfResource): string {
   const a = r.attrs;
   const named = a.tags?.Name ?? a.function_name ?? a.bucket ?? a.identifier ?? a.name;
-  if (typeof named === 'string' && named) return named;
+  if (typeof named === 'string' && named && !isPlaceholder(named)) return named;
   return r.indexKey !== undefined ? `${r.name}[${r.indexKey}]` : r.name;
 }

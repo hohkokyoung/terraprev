@@ -48,6 +48,8 @@ export interface OfferRow {
   to: number | null;
   desc: string;
   attrs: Record<string, string>;
+  /** Set on 1-year No Upfront Reserved rows (same SKU as the on-demand row). Unset = on-demand. */
+  term?: 'reserved';
 }
 
 export interface PriceMatch {
@@ -87,6 +89,11 @@ const KEEP: Record<string, (r: Record<string, string>) => boolean> = {
   AmazonRDS: (r) => ['Database Instance', 'Database Storage', 'Storage Snapshot'].includes(r['Product Family']),
 };
 
+/** Services whose 1-year No Upfront reserved rates are kept too, for the "reserve it" savings. */
+const RESERVED_SERVICES = new Set(['AmazonEC2', 'AmazonRDS']);
+/** Bumped when the cached rows change shape. Caches from before reserved rates were kept refresh on next use. */
+const CACHE_SCHEMA = 2;
+
 /** usageType prefixes per region. us-east-1 rows are often unprefixed. */
 const REGION_PREFIX: Record<string, string> = {
   'us-east-1': 'USE1', 'us-east-2': 'USE2', 'us-west-1': 'USW1', 'us-west-2': 'USW2',
@@ -123,6 +130,7 @@ export class OfferSet {
   find(q: Query): PriceMatch | undefined {
     let rows = this.rows.filter(
       (r) =>
+        !r.term &&
         (q.usageType === undefined || this.usageMatches(r.usageType, q.usageType)) &&
         (q.operation === undefined || r.operation === q.operation),
     );
@@ -151,8 +159,13 @@ export class OfferSet {
 
   /** Allowance from a "Global-…" free tier row, e.g. 1,000,000 for Global-Request. */
   freeAllowance(usageType: string): PriceMatch['free'] {
-    const row = this.rows.find((r) => r.usageType === usageType && r.price === 0 && r.to !== null && r.to > 0);
+    const row = this.rows.find((r) => !r.term && r.usageType === usageType && r.price === 0 && r.to !== null && r.to > 0);
     return row ? { allowance: row.to!, label: row.desc } : undefined;
+  }
+
+  /** Hourly rate of a 1-year standard Reserved Instance, No Upfront, for this on-demand SKU. */
+  reserved(sku: string): number | undefined {
+    return this.rows.find((r) => r.term === 'reserved' && r.sku === sku && r.unit === 'Hrs')?.price;
   }
 }
 
@@ -199,7 +212,8 @@ export class AwsOffers {
   private async loadUncached(service: string, region: string): Promise<OfferSet> {
     const file = join(this.cacheDir, region, `${service}.json`);
     const cached = await readCache(file);
-    if (cached && (this.offline || Date.now() - (await stat(file)).mtimeMs < this.ttlMs)) return new OfferSet(cached);
+    const current = cached && (cached.schema === CACHE_SCHEMA || !RESERVED_SERVICES.has(service));
+    if (cached && (this.offline || (current && Date.now() - (await stat(file)).mtimeMs < this.ttlMs))) return new OfferSet(cached);
     if (this.offline) throw new Error(`no cached ${service} prices for ${region}; run once without --offline`);
     try {
       const fresh = await this.download(service, region);
@@ -232,6 +246,7 @@ export class AwsOffers {
 
     const keepCols = EXTRA_COLUMNS[service] ?? ['Group'];
     const keep = KEEP[service] ?? (() => true);
+    const reservedToo = RESERVED_SERVICES.has(service);
     const rows: OfferRow[] = [];
     let header: string[] | undefined;
     let publishedAt: string | undefined;
@@ -245,12 +260,14 @@ export class AwsOffers {
         if (lineNo > 20 && !header) throw new Error(`Unexpected CSV layout for ${service}`);
         continue;
       }
-      // Cheap reject before full parse: most EC2 rows are Reserved/Savings Plan terms.
-      if (!line.includes('"OnDemand"')) continue;
+      // Cheap reject before full parse: most EC2 rows are other Reserved/Savings Plan terms.
+      if (!line.includes('"OnDemand"') && !(reservedToo && line.includes('"Reserved"') && line.includes('"1yr"') && line.includes('"No Upfront"'))) continue;
       const cells = parseCsvLine(line);
       const r: Record<string, string> = {};
       for (let i = 0; i < header.length; i++) r[header[i]] = cells[i] ?? '';
-      if (r.TermType !== 'OnDemand' || r.Currency !== 'USD') continue;
+      const reserved = r.TermType === 'Reserved';
+      if (reserved ? !(reservedToo && r.LeaseContractLength === '1yr' && r.PurchaseOption === 'No Upfront' && (r.OfferingClass || 'standard') === 'standard' && r.Unit === 'Hrs') : r.TermType !== 'OnDemand') continue;
+      if (r.Currency !== 'USD') continue;
       const loc = r['Location Type'];
       if (loc && loc !== 'AWS Region') continue;
       if (!keep(r)) continue;
@@ -266,10 +283,11 @@ export class AwsOffers {
         to: r.EndingRange === 'Inf' || r.EndingRange === '' ? null : Number(r.EndingRange),
         desc: r.PriceDescription,
         attrs,
+        ...(reserved ? { term: 'reserved' as const } : {}),
       });
     }
     this.onProgress({ source: label, loadedBytes: loaded, totalBytes: total, done: true });
-    return { service, region, rows, publishedAt, fetchedAt: new Date().toISOString() };
+    return { schema: CACHE_SCHEMA, service, region, rows, publishedAt, fetchedAt: new Date().toISOString() };
   }
 }
 

@@ -5,13 +5,15 @@ import { formatUsd } from '../../../shared/cost.ts';
 import { categoryVar } from '../lib/categories.ts';
 import { awsName } from '../../../shared/awsNames.ts';
 import type { FlowNodeData } from '../lib/layout.ts';
+import { formatDelta } from '../../../shared/compare.ts';
 
 type FlowNode = Node<FlowNodeData>;
 
 const TAGS: Record<string, string> = { internet: '⇄' };
+const CHANGE_TAG = { added: '+', changed: '~', replaced: '±', removed: '−' } as const;
 
 export function ResourceNode({ data, selected }: NodeProps<FlowNode>) {
-  const { node, monthly, hasUsage, fresh, expanded, revealed, traced } = data;
+  const { node, monthly, hasUsage, fresh, expanded, revealed, traced, change, delta } = data;
   const toggle = useContext(ExpandContext);
   const roles = node.access?.roles.length ?? 0;
   const sgs = node.access?.securityGroups.length ?? 0;
@@ -19,7 +21,7 @@ export function ResourceNode({ data, selected }: NodeProps<FlowNode>) {
   const hint = node.details[0]?.[1];
   return (
     <div
-      className={['rnode', node.virtual && 'rnode--virtual', node.supporting && 'rnode--supporting', selected && 'is-selected', fresh && 'is-fresh', revealed && 'is-revealed', traced && `is-traced-${traced}`, node.type === 'internet' && 'rnode--internet']
+      className={['rnode', node.virtual && 'rnode--virtual', node.supporting && 'rnode--supporting', selected && 'is-selected', fresh && 'is-fresh', revealed && 'is-revealed', traced && `is-traced-${traced}`, change && `is-${change}`, node.type === 'internet' && 'rnode--internet']
         .filter(Boolean)
         .join(' ')}
       style={{ ['--cat' as string]: categoryVar(node.category) }}
@@ -38,6 +40,12 @@ export function ResourceNode({ data, selected }: NodeProps<FlowNode>) {
         </span>
       )}
       <Handle type="source" position={Position.Right} className="handle" />
+      {change && (
+        <span className={`rnode__change chg chg--${change}`} title={delta ? `${formatDelta(delta)}/month` : undefined}>
+          {CHANGE_TAG[change]}
+          {delta !== undefined && Math.abs(delta) >= 0.005 && <b>{formatDelta(delta)}</b>}
+        </span>
+      )}
       {(roles > 0 || sgs > 0) && (
         <button
           type="button"
@@ -59,9 +67,9 @@ export function ResourceNode({ data, selected }: NodeProps<FlowNode>) {
 }
 
 export function GroupNode({ data, selected }: NodeProps<FlowNode>) {
-  const { node, monthly } = data;
+  const { node, monthly, change } = data;
   return (
-    <div className={`gnode gnode--${node.groupKind} ${node.sublabel?.startsWith('public') ? 'gnode--public' : ''} ${selected ? 'is-selected' : ''}`}>
+    <div className={`gnode gnode--${node.groupKind} ${node.sublabel?.startsWith('public') ? 'gnode--public' : ''} ${selected ? 'is-selected' : ''} ${change ? `is-${change}` : ''}`}>
       <Handle type="target" position={Position.Left} className="handle" />
       <div className="gnode__head">
         <div className="gnode__title">

@@ -3,14 +3,20 @@ import { ReactFlowProvider } from '@xyflow/react';
 import type { Snapshot } from '../../../shared/types.ts';
 import { buildReport, renderMarkdown, SEVERITY_LABEL, type Report } from '../../../shared/report.ts';
 import { formatUsd } from '../../../shared/cost.ts';
+import { formatDelta, type Diff } from '../../../shared/compare.ts';
 import { Diagram } from './Diagram.tsx';
 import { STATIC } from '../lib/staticData.ts';
+import type { View } from '../lib/useView.ts';
 
 interface Props {
   snapshot: Snapshot;
   usage: Record<string, number>;
   freeTier: boolean;
   costByNode: Map<string, number>;
+  /** Plan preview / comparison shown on the page: the brief leads with it. */
+  diff?: Diff;
+  /** Live server: the comparison or plan on screen, so the server-printed PDF shows the same. */
+  view?: View;
   onClose: () => void;
   /** Headless export: print as soon as the figure has rendered. */
   autoPrint?: boolean;
@@ -21,8 +27,8 @@ const FIGURE_RATIO = 0.5;
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
 /** The CTO brief as a document: read on screen, save as PDF, or download as Markdown. */
-export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, autoPrint }: Props) {
-  const report: Report = useMemo(() => buildReport({ snapshot, usage, freeTier }), [snapshot, usage, freeTier]);
+export function ReportView({ snapshot, usage, freeTier, costByNode, diff, view, onClose, autoPrint }: Props) {
+  const report: Report = useMemo(() => buildReport({ snapshot, usage, freeTier, diff }), [snapshot, usage, freeTier, diff]);
   const [copied, setCopied] = useState(false);
   const figRef = useRef<HTMLDivElement>(null);
   const [figW, setFigW] = useState(0);
@@ -42,7 +48,14 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
       window.removeEventListener('afterprint', measure);
     };
   }, []);
-  const fileBase = `${report.title.split(':')[0].replace(/[^\w.-]+/g, '-')}-brief`;
+  const fileBase = `${report.title.split(':')[0].replace(/[^\w.-]+/g, '-')}-${diff?.kind === 'stacks' ? 'comparison' : 'brief'}`;
+  // A plan or comparison: the same markers as the page's diagram, and what only the other side has, dashed.
+  const figure = useMemo(() => ({
+    nodes: [...snapshot.graph.nodes, ...(diff?.ghosts.nodes ?? [])],
+    edges: [...snapshot.graph.edges, ...(diff?.ghosts.edges ?? [])],
+    ghostEdges: new Set(diff?.ghosts.edges.map((e) => e.id)),
+    deltas: new Map(diff?.nodes.filter((n) => Math.abs(n.delta) >= 0.005).map((n) => [n.id, n.delta])),
+  }), [snapshot, diff]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -91,7 +104,7 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
       const res = await fetch('/api/report.pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ theme, freeTier, usage }),
+        body: JSON.stringify({ theme, freeTier, usage, view }),
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `HTTP ${res.status}`);
       const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(await res.blob()), download: `${fileBase}.pdf` });
@@ -135,7 +148,7 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
   return (
     <div className="report" role="dialog" aria-label="Architecture & cost brief">
       <div className="report__bar">
-        <span className="report__barTitle">Architecture & cost brief</span>
+        <span className="report__barTitle">{diff?.kind === 'stacks' ? 'Architecture & cost comparison' : 'Architecture & cost brief'}</span>
         <span className="report__barHint muted small">Uses your current usage assumptions{freeTier ? ' and free tier' : ''}.</span>
         {pdfError && <span className="report__barError small">{pdfError}</span>}
         {STATIC ? (
@@ -152,9 +165,9 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
 
       <article className="doc">
         <header className="doc__head">
-          <p className="doc__kicker">Architecture & cost brief</p>
+          <p className="doc__kicker">{diff?.kind === 'stacks' ? 'Architecture & cost comparison' : 'Architecture & cost brief'}</p>
           <h1>{report.title.split(':')[0]}</h1>
-          <dl className="doc__meta">
+          <dl className="doc__meta" style={{ ['--meta-cols' as string]: Math.ceil(report.meta.length / 2) }}>
             {report.meta.map((m) => (
               <div key={m.label}>
                 <dt>{m.label}</dt>
@@ -182,6 +195,51 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
           </div>
         </section>
 
+        {report.changes && (
+          <section>
+            <h2>{report.changes.kind === 'plan' ? 'What this plan changes' : `How ${report.changes.targetLabel} differs from ${report.changes.baseLabel}`}</h2>
+            <p>{report.changes.summary}</p>
+            {report.changes.rows.length > 0 && (
+              <table className="doc__table">
+                <thead>
+                  <tr>
+                    <th>Resource</th><th>{report.changes.kind === 'plan' ? 'Change' : 'Difference'}</th>
+                    <th className="num">{report.changes.kind === 'plan' ? 'Before' : report.changes.baseLabel}</th>
+                    <th className="num">{report.changes.kind === 'plan' ? 'After' : report.changes.targetLabel}</th>
+                    <th className="num">{report.changes.kind === 'plan' ? 'Δ / month' : `${report.changes.targetLabel} vs ${report.changes.baseLabel}`}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.changes.rows.map((x, i) => (
+                    <tr key={i}>
+                      <td>{x.name} <span className="muted">· {x.kind}</span></td>
+                      <td>{x.change}{x.what && <div className="mono small muted">{x.what}</div>}</td>
+                      <td className="num">{x.before ? formatUsd(x.before) : '–'}</td>
+                      <td className="num">{x.after ? formatUsd(x.after) : '–'}{x.unknown ? ' ⚠' : ''}</td>
+                      <td className="num">{formatDelta(x.delta)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {report.changes.findingsAdded.length > 0 && (
+              <>
+                <h3>{report.changes.kind === 'plan' ? 'New findings' : `Findings only in ${report.changes.targetLabel}`}</h3>
+                <ul className="doc__bullets">{report.changes.findingsAdded.map((f, i) => <li key={i}>{f}</li>)}</ul>
+              </>
+            )}
+            {report.changes.findingsResolved.length > 0 && (
+              <>
+                <h3>{report.changes.kind === 'plan' ? 'Resolved by this plan' : `Findings only in ${report.changes.baseLabel}`}</h3>
+                <ul className="doc__bullets">{report.changes.findingsResolved.map((f, i) => <li key={i}><s>{f}</s></li>)}</ul>
+              </>
+            )}
+            {report.changes.unknownAfterApply.length > 0 && (
+              <p className="doc__foot">⚠ Some values are only known after apply, so these may cost more than shown: {report.changes.unknownAfterApply.join(', ')}.</p>
+            )}
+          </section>
+        )}
+
         <section>
           <h2>Architecture</h2>
           <ul className="doc__bullets">
@@ -191,8 +249,8 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
             <div ref={figRef} className="doc__diagram" style={{ height: figW ? Math.round(figW * FIGURE_RATIO) : undefined, aspectRatio: figW ? undefined : `1 / ${FIGURE_RATIO}` }}>
               {figW > 0 && <ReactFlowProvider key={figW}>
                 <Diagram
-                  nodes={snapshot.graph.nodes}
-                  edges={snapshot.graph.edges}
+                  nodes={figure.nodes}
+                  edges={figure.edges}
                   showSupporting={false}
                   showDeps={false}
                   expanded={new Set()}
@@ -203,11 +261,26 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
                   costByNode={costByNode}
                   components={snapshot.cost.components}
                   fresh={new Set()}
+                  changes={diff?.status}
+                  deltas={figure.deltas}
+                  ghostEdges={figure.ghostEdges}
                   onSelect={() => {}}
                 />
               </ReactFlowProvider>}
             </div>
-            <figcaption>Solid arrows carry traffic or events; numbers are estimated monthly cost per component.</figcaption>
+            <figcaption>
+              {diff && (
+                <ul className="edgekey changekey doc__changekey" aria-label="Change legend">
+                  <li className="is-added">{diff.kind === 'plan' ? 'add' : `only in ${diff.targetLabel}`}</li>
+                  <li className="is-changed">{diff.kind === 'plan' ? 'change' : 'differs'}</li>
+                  {diff.kind === 'plan' && <li className="is-replaced">replace</li>}
+                  <li className="is-removed">{diff.kind === 'plan' ? 'destroy' : `only in ${diff.baseLabel}`}</li>
+                </ul>
+              )}
+              {diff?.kind === 'stacks'
+                ? `The diagram is ${diff.targetLabel}; what only ${diff.baseLabel} has is drawn dashed where it sits there. Badges show each resource's monthly cost difference.`
+                : 'Solid arrows carry traffic or events; numbers are estimated monthly cost per component.'}
+            </figcaption>
           </figure>
 
           <h3>Components by tier</h3>
@@ -284,6 +357,39 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, onClose, aut
             </tbody>
           </table>
           <p className="doc__foot">~ includes usage-based charges.</p>
+          {report.cost.savings.items.length > 0 && (
+            <>
+              <h3>Ways to cut the bill</h3>
+              {report.cost.savings.total >= 0.005 && <p>Up to <b>{formatUsd(report.cost.savings.total)}/month</b> together (savings on the same resource count once).</p>}
+              <table className="doc__table">
+                <thead><tr><th>Change</th><th>Resource</th><th className="num">Saves / month</th><th>What it takes</th></tr></thead>
+                <tbody>
+                  {report.cost.savings.items.map((s, i) => (
+                    <tr key={i}>
+                      <td>{s.title}{s.change && <div className="mono small muted">{s.change.split('\n')[0]}</div>}</td>
+                      <td>{s.resource}</td>
+                      <td className="num">{s.monthly >= 0.005 ? formatUsd(s.monthly) : s.perUnit ?? '-'}</td>
+                      <td className="small">{s.caveat}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+          {report.cost.history && (
+            <>
+              <h3>Cost over time</h3>
+              {report.cost.history.sentence && <p>{report.cost.history.sentence}</p>}
+              <table className="doc__table doc__table--narrow">
+                <thead><tr><th>Applied</th><th className="num">Serial</th><th className="num">Always-on</th><th className="num">Total</th></tr></thead>
+                <tbody>
+                  {report.cost.history.points.map((p) => (
+                    <tr key={p.serial}><td>{p.date}</td><td className="num">{p.serial}</td><td className="num">{formatUsd(p.fixed)}</td><td className="num">{formatUsd(p.total)}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
           {report.cost.assumptions.length > 0 && (
             <>
               <h3>Usage assumptions</h3>

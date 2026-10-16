@@ -6,6 +6,7 @@ import { nodeTypes } from './nodes.tsx';
 import { ElkEdge } from './ElkEdge.tsx';
 import { ExpandContext } from '../lib/expand.ts';
 import { upstream } from '../../../shared/flow.ts';
+import type { NodeChange } from '../../../shared/compare.ts';
 
 const edgeTypes = { elk: ElkEdge };
 
@@ -29,11 +30,16 @@ interface Props {
   costByNode: Map<string, number>;
   components: CostComponent[];
   fresh: Set<string>;
+  /** Plan preview / comparison: change per node, and the monthly cost change. */
+  changes?: Map<string, NodeChange>;
+  deltas?: Map<string, number>;
+  /** Edges that only exist on the "before" side (to or from a removed node). */
+  ghostEdges?: Set<string>;
   selected?: string;
   onSelect: (id: string | undefined) => void;
 }
 
-export function Diagram({ nodes, edges, showSupporting, showDeps, expanded, onToggleExpand, flowMode, fitSignal, pageSize, embedded, costByNode, components, fresh, selected, onSelect }: Props) {
+export function Diagram({ nodes, edges, showSupporting, showDeps, expanded, onToggleExpand, flowMode, fitSignal, pageSize, embedded, costByNode, components, fresh, changes, deltas, ghostEdges, selected, onSelect }: Props) {
   const [layout, setLayout] = useState<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
   // Bumped on every new layout; remounting ReactFlow re-runs its built-in fitView once nodes are measured.
   const [version, setVersion] = useState(0);
@@ -89,17 +95,18 @@ export function Diagram({ nodes, edges, showSupporting, showDeps, expanded, onTo
           ...fn,
           selected: fn.id === selected,
           data: {
-            ...d, monthly, hasUsage: usageNodes.has(n.id), fresh: fresh.has(n.id), expanded: expanded.has(n.id), revealed: revealed.has(n.id) && !showSupporting,
+            ...d, monthly, hasUsage: usageNodes.has(n.id), fresh: fresh.has(n.id), change: changes?.get(n.id), delta: deltas?.get(n.id), expanded: expanded.has(n.id), revealed: revealed.has(n.id) && !showSupporting,
             traced: trace ? (trace.nodes.has(n.id) ? (n.id === selected ? 'target' : 'source') : n.kind === 'group' ? undefined : 'off') : undefined,
           },
         };
       }),
-    [layout.nodes, costByNode, pricedNodes, usageNodes, providerTotals, fresh, selected, expanded, revealed, showSupporting, trace],
+    [layout.nodes, costByNode, pricedNodes, usageNodes, providerTotals, fresh, changes, deltas, selected, expanded, revealed, showSupporting, trace],
   );
 
   const flowEdges = useMemo(
     () =>
-      layout.edges.map((e) => {
+      layout.edges.map((laid) => {
+        const e = ghostEdges?.has(laid.id) ? { ...laid, className: `${laid.className} edge-ghost` } : laid;
         const touches = !!selected && (e.source === selected || e.target === selected);
         const kind = (e.data as { kind: string }).kind;
         const inCluster = (id: string) => expanded.has(id) || revealed.has(id);
@@ -120,7 +127,7 @@ export function Diagram({ nodes, edges, showSupporting, showDeps, expanded, onTo
           zIndex: touches ? 20 : 5,
         };
       }),
-    [layout.edges, selected, showDeps, expanded, revealed, trace],
+    [layout.edges, selected, showDeps, expanded, revealed, trace, ghostEdges],
   );
 
   return (

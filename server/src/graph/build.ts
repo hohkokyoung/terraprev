@@ -1,5 +1,6 @@
 import type { GraphEdge, GraphNode, TfResource } from '../../../shared/types.ts';
 import { redactValue } from '../state/redact.ts';
+import { isPlaceholder } from '../state/plan.ts';
 import { attachAccess } from './access.ts';
 import { IDENTIFIER_KEYS, UTILITY_PROVIDERS, displayName, typeInfo, type Link } from './catalog.ts';
 
@@ -89,7 +90,7 @@ export function buildGraph(all: TfResource[], secrets: Set<string>, defaultRegio
   for (const r of resources.filter((r) => r.type === 'aws_vpc')) {
     addNode({
       id: r.address, kind: 'group', groupKind: 'vpc', type: r.type, provider: r.provider, category: 'network',
-      label: displayName(r), sublabel: r.attrs.cidr_block, addresses: [r.address], details: [['id', r.attrs.id]],
+      label: displayName(r), sublabel: r.attrs.cidr_block, addresses: [r.address], details: [['id', isPlaceholder(r.attrs.id) ? 'known after apply' : r.attrs.id]],
       parentId: providerGroup(r.provider),
     });
     vpcGroupId.set(r.attrs.id, r.address);
@@ -102,7 +103,7 @@ export function buildGraph(all: TfResource[], secrets: Set<string>, defaultRegio
       id: r.address, kind: 'group', groupKind: 'subnet', type: r.type, provider: r.provider, category: 'network',
       label: displayName(r),
       sublabel: `${isPublic ? 'public' : 'private'} · ${r.attrs.cidr_block} · ${r.attrs.availability_zone}`,
-      addresses: [r.address], details: [['id', r.attrs.id]],
+      addresses: [r.address], details: [['id', isPlaceholder(r.attrs.id) ? 'known after apply' : r.attrs.id]],
       parentId: vpcGroupId.get(r.attrs.vpc_id) ?? providerGroup(r.provider),
     });
     subnetGroupId.set(r.attrs.id, r.address);
@@ -151,7 +152,7 @@ export function buildGraph(all: TfResource[], secrets: Set<string>, defaultRegio
       const r = byAddress.get(addr)!;
       for (const [k, v] of typeInfo(r).details?.(attrsOf(r)) ?? []) {
         if (v === undefined || v === null || v === '' || v === 'undefined') continue;
-        n.details.push([k, redactValue(k, String(v), secrets)]);
+        n.details.push([k, isPlaceholder(v) ? 'known after apply' : redactValue(k, String(v), secrets)]);
       }
     }
   }

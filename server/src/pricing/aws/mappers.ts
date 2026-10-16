@@ -51,6 +51,10 @@ export const MAPPERS: Record<string, Mapper> = {
       const root = rootVolume(a.root_block_device ?? []);
       m.fixed('AmazonEC2', `Root volume (${root.size} GB ${root.type})`, EBS(root.type), root.size);
       if (a.associate_public_ip_address || a.public_ip) m.fixed('AmazonVPC', 'Public IPv4 address', PUBLIC_IPV4, H);
+      // Not yet known (a plan): the subnet decides at launch.
+      else if (a.associate_public_ip_address == null && m.find('aws_subnet', (s) => s.attrs.id === a.subnet_id)?.attrs.map_public_ip_on_launch === true) {
+        m.fixed('AmazonVPC', 'Public IPv4 address', PUBLIC_IPV4, H, 'Its subnet gives instances a public IPv4 at launch, billed hourly since Feb 2024.');
+      }
     },
   },
 

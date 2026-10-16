@@ -2,6 +2,7 @@ import type { TfResource, UsageParam } from '../../../../shared/types.ts';
 import { emptyResult, type PricingInput, type PricingResult, type ProviderPricer } from '../types.ts';
 import { FREE_TYPES, MAPPERS, type MapperApi } from './mappers.ts';
 import { offerUrl, pricingPage, type AwsOffers, type OfferSet } from './offers.ts';
+import { awsSavings } from './savings.ts';
 
 export class AwsPricer implements ProviderPricer {
   readonly provider = 'aws';
@@ -48,6 +49,21 @@ export class AwsPricer implements ProviderPricer {
         continue;
       }
       mapper.price(this.api(r, nodeId, all, loaded, res));
+    }
+
+    // 4. Cheaper ways to run the same thing, priced by the same rules. Never worth failing the bill over.
+    try {
+      res.savings = awsSavings({
+        resources, all, nodeOf, region, components: res.components, unpriced: res.unpriced,
+        price: (r, context = all) => {
+          const scratch = emptyResult();
+          MAPPERS[r.type]?.price(this.api(r, nodeOf.get(r.address) ?? r.address, context, loaded, scratch));
+          return scratch;
+        },
+        reservedRate: (service, sku) => loaded.get(service)?.reserved(sku),
+      });
+    } catch {
+      res.savings = [];
     }
     return res;
   }

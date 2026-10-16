@@ -25,6 +25,17 @@ export function sensitiveValues(attrs: Record<string, any>, sensitivePaths: any[
   return out;
 }
 
+/**
+ * Same, for Terraform's JSON output (`terraform show -json`), which marks sensitive values with a
+ * parallel structure of booleans (`sensitive_values`, `after_sensitive`) instead of paths.
+ */
+export function sensitiveFromMask(values: any, mask: any, out = new Set<string>()): Set<string> {
+  if (mask === true) collectStrings(values, out);
+  else if (Array.isArray(mask)) mask.forEach((m, i) => sensitiveFromMask(values?.[i], m, out));
+  else if (mask && typeof mask === 'object') for (const [k, m] of Object.entries(mask)) sensitiveFromMask(values?.[k], m, out);
+  return out;
+}
+
 function collectStrings(v: any, out: Set<string>) {
   if (typeof v === 'string' && v.length >= 4) out.add(v);
   else if (Array.isArray(v)) v.forEach((x) => collectStrings(x, out));

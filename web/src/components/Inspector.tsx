@@ -6,6 +6,10 @@ import { awsName } from '../../../shared/awsNames.ts';
 import { useState } from 'react';
 import { UsageSlider } from './UsageSlider.tsx';
 import { TerraformSource } from './TerraformSource.tsx';
+import { changeText, formatDelta, gapText, type Diff, type NodeDiff } from '../../../shared/compare.ts';
+import { deltaClass } from './ChangesPanel.tsx';
+import { priceSavings } from '../../../shared/savings.ts';
+import { SavingsList } from './Savings.tsx';
 
 interface Props {
   node: GraphNode;
@@ -22,9 +26,13 @@ interface Props {
   lines: Map<string, LineCost>;
   edges: GraphEdge[];
   nodesById: Map<string, GraphNode>;
+  /** Plan preview / comparison: what happens to this resource. */
+  change?: NodeDiff;
+  compare?: Pick<Diff, 'kind' | 'baseLabel' | 'targetLabel'>;
+  freeTier: boolean;
 }
 
-export function Inspector({ node, cost, values, overrides, setUsage, expanded, onToggleExpand, onSelect, stateSerial, lines, edges, nodesById }: Props) {
+export function Inspector({ node, cost, values, overrides, setUsage, expanded, onToggleExpand, onSelect, stateSerial, lines, edges, nodesById, change, compare, freeTier }: Props) {
   const [view, setView] = useState<'overview' | 'terraform'>('overview');
   const components = cost.components.filter((c) => c.nodeId === node.id);
   const params = cost.usage.filter((p) => p.nodeId === node.id);
@@ -62,6 +70,8 @@ export function Inspector({ node, cost, values, overrides, setUsage, expanded, o
         <TerraformSource addresses={node.addresses} refreshKey={`${node.id}@${stateSerial}`} />
       ) : (
       <>
+      {change && compare && <ChangeSection change={change} diff={compare} />}
+
       {node.virtual && node.type === 'aws_instance' && (
         <p className="muted small">Launched by the Auto Scaling Group. Its cost is counted on the ASG.</p>
       )}
@@ -78,6 +88,8 @@ export function Inspector({ node, cost, values, overrides, setUsage, expanded, o
           </table>
         </section>
       )}
+
+      <NodeSavings cost={cost} nodeId={node.id} values={values} freeTier={freeTier} />
 
       {params.length > 0 && (
         <section>
@@ -179,6 +191,76 @@ function Line({ c, values, line }: { c: CostComponent; values: Record<string, nu
       </td>
       <td className="num">{formatUsd(monthly)}</td>
     </tr>
+  );
+}
+
+function NodeSavings({ cost, nodeId, values, freeTier }: { cost: CostReport; nodeId: string; values: Record<string, number>; freeTier: boolean }) {
+  const items = priceSavings(cost.components, cost.savings?.filter((s) => s.nodeId === nodeId), values, freeTier);
+  if (!items.length) return null;
+  return (
+    <section className="savingsbox">
+      <h3>Ways to save</h3>
+      <SavingsList items={items} />
+    </section>
+  );
+}
+
+function ChangeSection({ change, diff }: { change: NodeDiff; diff: Pick<Diff, 'kind' | 'baseLabel' | 'targetLabel'> }) {
+  const plan = diff.kind === 'plan';
+  if (!plan) {
+    // Two stacks: both sides in a table, so it never reads as one turning into the other.
+    const usd = (x: number) => (x ? formatUsd(x) : '–');
+    return (
+      <section className="inspector__change">
+        <h3>Compared with {diff.baseLabel}</h3>
+        <p className="inspector__changeline">
+          <span className={`chg chg--${change.change}`}>{changeText(diff, change.change)}</span>
+          {Math.abs(change.delta) >= 0.005 && <span>{diff.targetLabel} costs <b>{gapText(change.delta)}</b> a month</span>}
+        </p>
+        <table className="sides">
+          <thead>
+            <tr><th /><th>{diff.baseLabel}</th><th>{diff.targetLabel}</th></tr>
+          </thead>
+          <tbody>
+            <tr><th>per month</th><td>{usd(change.before)}</td><td>{usd(change.after)}</td></tr>
+            {change.fields.map((f) => (
+              <tr key={f.key} className="is-diff"><th>{f.key}</th><td>{f.before ?? '–'}</td><td>{f.after ?? '–'}</td></tr>
+            ))}
+          </tbody>
+        </table>
+        {change.change === 'removed' && <p className="muted small">Only {diff.baseLabel} has this. It is drawn dashed where it sits in {diff.baseLabel}.</p>}
+        {change.change === 'added' && <p className="muted small">Only {diff.targetLabel} has this.</p>}
+      </section>
+    );
+  }
+  return (
+    <section className="inspector__change">
+      <h3>{plan ? 'This plan' : `Compared with ${diff.baseLabel}`}</h3>
+      <p className="inspector__changeline">
+        <span className={`chg chg--${change.change}`}>{changeText(diff, change.change)}</span>
+        {(change.before > 0 || change.after > 0) && (
+          <span>
+            {change.before ? formatUsd(change.before) : '–'} → {change.after ? formatUsd(change.after) : '–'} /month{' '}
+            <b className={deltaClass(change.delta)}>{formatDelta(change.delta)}</b>
+          </span>
+        )}
+      </p>
+      {change.change === 'removed' && <p className="muted small">{plan ? 'Destroyed by this plan.' : `Only in ${diff.baseLabel}.`} Shown faded where it would be.</p>}
+      {change.fields.length > 0 && (
+        <dl className="kv kv--diff">
+          {change.fields.map((f) => (
+            <div key={f.key}>
+              <dt>{f.key}</dt>
+              <dd><s>{f.before ?? '–'}</s> → <b>{f.after ?? '–'}</b></dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {change.attrs.length > 0 && (
+        <p className="small muted">Changed attributes: {change.attrs.map((a, i) => <span key={a}>{i ? ', ' : ''}<code>{a}</code></span>)}</p>
+      )}
+      {change.unknown && <p className="warn small">Some cost-relevant values are only known after apply; the cost may be higher than shown.</p>}
+    </section>
   );
 }
 

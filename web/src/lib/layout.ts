@@ -1,6 +1,7 @@
 import ELK, { type ElkNode, type ElkExtendedEdge, type ElkPoint } from 'elkjs/lib/elk.bundled.js';
 import { Position, type Edge, type Node } from '@xyflow/react';
 import type { GraphEdge, GraphNode } from '../../../shared/types.ts';
+import type { NodeChange } from '../../../shared/compare.ts';
 
 const elk = new ELK();
 
@@ -10,7 +11,11 @@ export const SIZE = {
   emptyGroup: { width: 240, height: 84 },
 };
 
-export type FlowNodeData = { node: GraphNode; monthly?: number; hasUsage: boolean; fresh: boolean; expanded?: boolean; revealed?: boolean; traced?: 'target' | 'source' | 'off' };
+export type FlowNodeData = {
+  node: GraphNode; monthly?: number; hasUsage: boolean; fresh: boolean; expanded?: boolean; revealed?: boolean; traced?: 'target' | 'source' | 'off';
+  /** Plan preview / comparison: what happens to this node, and its monthly cost change. */
+  change?: NodeChange; delta?: number;
+};
 export type FlowEdgeData = { kind: GraphEdge['kind']; points?: ElkPoint[]; labelPos?: ElkPoint };
 
 /** Header height reserved inside each group so children never overlap its title + subtitle. */

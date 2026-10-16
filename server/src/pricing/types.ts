@@ -1,4 +1,4 @@
-import type { CostComponent, CostReport, TfResource, UsageParam } from '../../../shared/types.ts';
+import type { CostComponent, CostReport, Saving, TfResource, UsageParam } from '../../../shared/types.ts';
 
 export interface PricingInput {
   /** Managed resources of this provider. */
@@ -17,6 +17,7 @@ export interface PricingResult {
   free: CostReport['free'];
   sources: CostReport['sources'];
   errors: string[];
+  savings: Saving[];
 }
 
 /** One per cloud. Add Azure/GCP by implementing this and registering it in estimate.ts. */
@@ -26,5 +27,5 @@ export interface ProviderPricer {
 }
 
 export function emptyResult(): PricingResult {
-  return { components: [], usage: [], unpriced: [], free: [], sources: [], errors: [] };
+  return { components: [], usage: [], unpriced: [], free: [], sources: [], errors: [], savings: [] };
 }

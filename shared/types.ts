@@ -155,6 +155,63 @@ export interface CostReport {
   free: { address: string; type: string }[];
   sources: { name: string; publishedAt?: string; fetchedAt?: string; pageUrl?: string; dataUrl?: string }[];
   errors: string[];
+  /** Cheaper ways to run the same stack, each priced from the same price lists. */
+  savings?: Saving[];
+}
+
+/**
+ * A priced way to cut the bill: swap these cost lines for those. The saving itself is computed where
+ * it's shown (shared/savings.ts), so it follows the usage sliders and the free tier like every other number.
+ */
+export interface Saving {
+  id: string;
+  kind: 'graviton' | 'gp3' | 'reserved' | 'arm64' | 'release-ip' | 'private-subnets' | 'log-retention' | 'gateway-endpoints';
+  nodeId: string;
+  title: string;
+  /** What changes, in plain words. */
+  detail: string;
+  /** What it takes or risks, e.g. "Needs an arm64 AMI" or "1-year commitment". */
+  caveat?: string;
+  /** The Terraform change, e.g. instance_type = "t4g.small". */
+  change?: string;
+  /** Cost component ids this replaces. */
+  replaces: string[];
+  /** What they become (may be empty: the charge goes away). */
+  with: CostComponent[];
+  /** For savings that depend on traffic the state can't show, e.g. "$0.045 per GB of S3 traffic". */
+  perUnit?: string;
+}
+
+/** One apply, as recorded by the snapshot build or the live server. */
+export interface HistoryPoint {
+  serial: number;
+  /** When terraform wrote the state. */
+  appliedAt: string;
+  resourceCount: number;
+  /** Always-on monthly cost. */
+  fixed: number;
+  /** Usage-based monthly cost at the default usage assumptions. */
+  usage: number;
+  /** Monthly cost per category (fixed + default usage), e.g. { Database: 31.2 }. */
+  byCategory: Record<string, number>;
+  findings: { high: number; medium: number };
+}
+
+export type ChangeAction = 'create' | 'update' | 'replace' | 'delete';
+
+/** A second snapshot to compare against: the state before a plan, or another stack. */
+export interface Comparison {
+  kind: 'plan' | 'stacks';
+  /** The "before" side: prior state of a plan, or the stack being compared against. */
+  base: Snapshot;
+  baseLabel: string;
+  targetLabel: string;
+  /** Terraform address → what happens to it. Only addresses that change. */
+  actions: Record<string, ChangeAction>;
+  /** Address → names of the attributes that change (plans only; values are never included). */
+  changedAttrs?: Record<string, string[]>;
+  /** Addresses whose cost may be incomplete because a value is only known after apply. */
+  unknownAfterApply?: string[];
 }
 
 export type InsightSeverity = 'high' | 'medium' | 'low' | 'info' | 'good';
@@ -187,6 +244,8 @@ export interface Snapshot {
   insights: Insight[];
   /** e.g. "local emulator (account 000000000000)" when the state wasn't applied to real AWS. */
   environment?: string;
+  /** Earlier applies of this state (same lineage), oldest first, ending with this one. */
+  history?: HistoryPoint[];
 }
 
 export interface PriceProgress {
@@ -228,4 +287,6 @@ export interface StaticBundle {
   generatedAt: string;
   /** Slider values to use instead of the viewer's saved ones (the server-rendered report PDF). */
   usage?: Record<string, number>;
+  /** Plan preview or stack comparison: `snapshot` is the "after" side, this holds the "before". */
+  compare?: Comparison;
 }

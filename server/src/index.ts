@@ -1,19 +1,21 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import type { PriceProgress, Snapshot } from '../../shared/types.ts';
+import type { Comparison, PriceProgress, Snapshot } from '../../shared/types.ts';
 import { loadConfig, ROOT } from './config.ts';
 import { watchState } from './watch.ts';
-import { buildBase, loadingCost, priceSnapshot } from './snapshot.ts';
+import { buildBase, loadingCost, priceSnapshot, type SnapshotParts } from './snapshot.ts';
 import { AwsOffers } from './pricing/aws/offers.ts';
 import { AwsPricer } from './pricing/aws/pricer.ts';
 import { SourceIndex } from './source/hcl.ts';
 import { labelMap } from './source/labels.ts';
 import { inline, printReport, webTemplate } from './export.ts';
+import { readHistory, recordHistory } from './history.ts';
+import { buildView, listStackFiles, ViewError, type ViewRequest } from './views.ts';
 
 const config = loadConfig();
 
@@ -23,6 +25,8 @@ const broadcast: Listener = (event, data) => listeners.forEach((l) => l(event, d
 
 let snapshot: Snapshot | undefined;
 let lastError: string | undefined;
+/** The live state, built: what a comparison compares against. */
+let parts: SnapshotParts | undefined;
 let generation = 0;
 /** address → real resource name, from the latest state (for labelling source blocks). */
 let names = new Map<string, { name?: string; type: string }>();
@@ -34,24 +38,27 @@ const sources = new SourceIndex(config.stateFile);
 async function onState(json: unknown) {
   const gen = ++generation;
   try {
-    const parts = buildBase(config.stateFile, json, config.defaultRegion);
-    names = labelMap(parts.state.resources);
+    const built = buildBase(config.stateFile, json, config.defaultRegion);
+    parts = built;
+    names = labelMap(built.state.resources);
     // Keep showing the previous prices while new ones compute, so the total doesn't blink.
-    const prevCost = snapshot?.cost.status === 'ready' ? { ...snapshot.cost, status: 'loading' as const } : loadingCost(parts.region);
+    const prevCost = snapshot?.cost.status === 'ready' ? { ...snapshot.cost, status: 'loading' as const } : loadingCost(built.region);
     // "Last applied" = when terraform last wrote the state, not when we read it.
     try {
-      parts.base.updatedAt = statSync(config.stateFile).mtime.toISOString();
+      built.base.updatedAt = statSync(config.stateFile).mtime.toISOString();
     } catch {
       /* keep read time */
     }
-    snapshot = { ...parts.base, cost: prevCost };
+    // History so far, so the chart doesn't blink; the new point lands once prices are in.
+    snapshot = { ...built.base, cost: prevCost, history: readHistory(config.historyDir, built.base.lineage) };
     lastError = undefined;
     broadcast('snapshot', snapshot);
-    log(`state serial ${parts.base.serial}: ${parts.base.resourceCount} resources, ${parts.base.graph.nodes.length} nodes`);
+    log(`state serial ${built.base.serial}: ${built.base.resourceCount} resources, ${built.base.graph.nodes.length} nodes`);
 
-    const cost = await priceSnapshot(parts, pricers);
+    const cost = await priceSnapshot(built, pricers);
     if (gen !== generation) return; // a newer apply landed meanwhile
     snapshot = { ...snapshot, cost };
+    snapshot.history = recordHistory(config.historyDir, snapshot);
     broadcast('snapshot', snapshot);
     const fixed = cost.components.filter((c) => c.kind === 'fixed').length;
     log(`priced: ${fixed} fixed + ${cost.components.length - fixed} usage components, ${cost.unpriced.length} unpriced`);
@@ -73,6 +80,25 @@ const app = new Hono();
 
 app.get('/api/snapshot', (c) => (snapshot ? c.json(snapshot) : c.json({ error: lastError ?? 'No state yet', stateFile: config.stateFile }, 503)));
 
+// Other views of the stack: state files to compare with and plans to preview, from the compare root only.
+app.get('/api/views', (c) => c.json(listStackFiles(config.compareRoot, config.stateFile)));
+
+// Any stack in the compare root on its own, any two compared, or a plan (paths relative to the root;
+// "live" = the watched state): ?show=prod.tfstate&against=staging.tfstate, ?show=live&against=…, ?show=plan.json
+app.get('/api/view', (c) => viewRoute(c, () => showView({ show: c.req.query('show'), against: c.req.query('against') })));
+
+const showView = (req: ViewRequest) => buildView(req, { compareRoot: config.compareRoot, live: parts, defaultRegion: config.defaultRegion, pricers });
+
+async function viewRoute(c: Context, run: () => Promise<unknown>) {
+  try {
+    return c.json(await run());
+  } catch (err) {
+    const status = err instanceof ViewError ? err.status : 400;
+    log(`view: ${(err as Error).message}`);
+    return c.json({ error: (err as Error).message }, status);
+  }
+}
+
 // The HCL block(s) that declared a resource, read fresh from disk each time.
 app.get('/api/source', (c) => {
   const address = c.req.query('address');
@@ -82,17 +108,24 @@ app.get('/api/source', (c) => {
 });
 
 // The brief as a PDF, printed by headless Chrome and sent as a file: no browser print preview.
-// Body: { theme: 'light' | 'dark', freeTier: boolean, usage: { [key]: number } } (the page's current settings).
+// Body: { theme: 'light' | 'dark', freeTier: boolean, usage: { [key]: number }, view?: { show, against } }
+// (the page's current settings, and what's on screen when it isn't just the live stack).
 app.post('/api/report.pdf', async (c) => {
-  const snap = snapshot;
-  if (!snap || snap.cost.status !== 'ready') return c.json({ error: 'Prices are still loading; try again in a moment.' }, 503);
   const body = await c.req.json().catch(() => ({}));
+  let snap = snapshot;
+  let compare: Comparison | undefined;
+  try {
+    if (body.view) ({ snapshot: snap = snap, compare } = await showView({ show: body.view.show, against: body.view.against }));
+  } catch (err) {
+    return c.json({ error: (err as Error).message }, err instanceof ViewError ? err.status : 400);
+  }
+  if (!snap || snap.cost.status !== 'ready') return c.json({ error: 'Prices are still loading; try again in a moment.' }, 503);
   const usage = Object.fromEntries(Object.entries(body.usage ?? {}).filter((e): e is [string, number] => typeof e[1] === 'number' && Number.isFinite(e[1])));
   const dir = mkdtempSync(join(tmpdir(), 'terraprev-'));
   try {
     const html = join(dir, 'report.html');
     const pdf = join(dir, 'report.pdf');
-    writeFileSync(html, inline(await webTemplate(log), { snapshot: snap, sources: {}, usage, generatedAt: new Date().toISOString() }));
+    writeFileSync(html, inline(await webTemplate(log), { snapshot: snap, sources: {}, usage, generatedAt: new Date().toISOString(), compare }));
     await printReport(html, pdf, { dark: body.theme === 'dark', freeTier: body.freeTier === true, updatedAt: snap.updatedAt });
     return c.body(readFileSync(pdf), 200, { 'Content-Type': 'application/pdf' });
   } catch (err) {

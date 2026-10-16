@@ -14,7 +14,11 @@ export interface SnapshotParts {
 
 /** Fast part: parse + graph. Ready in milliseconds so the diagram updates immediately. */
 export function buildBase(stateFile: string, json: unknown, defaultRegion: string): SnapshotParts {
-  const state = parseState(json);
+  return buildBaseFrom(stateFile, parseState(json), defaultRegion);
+}
+
+/** The same, from resources already parsed (one side of a plan). */
+export function buildBaseFrom(stateFile: string, state: ParsedState, defaultRegion: string): SnapshotParts {
   const graph = buildGraph(state.resources, state.secrets, defaultRegion);
   const providers = [...new Set(state.resources.filter((r) => r.mode === 'managed').map((r) => r.provider))].sort();
   const region = graph.region ?? defaultRegion;
@@ -44,5 +48,5 @@ export function priceSnapshot(parts: SnapshotParts, pricers: ProviderPricer[]): 
 }
 
 export function loadingCost(region: string): CostReport {
-  return { currency: 'USD', region, status: 'loading', components: [], usage: [], unpriced: [], free: [], sources: [], errors: [] };
+  return { currency: 'USD', region, status: 'loading', components: [], usage: [], unpriced: [], free: [], sources: [], errors: [], savings: [] };
 }

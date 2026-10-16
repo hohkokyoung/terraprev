@@ -19,6 +19,11 @@ import { AwsOffers } from './pricing/aws/offers.ts';
 import { AwsPricer } from './pricing/aws/pricer.ts';
 import { SourceIndex } from './source/hcl.ts';
 import { labelMap } from './source/labels.ts';
+import { readHistory } from './history.ts';
+import { planComparison, readPlan, stackComparison } from './compare.ts';
+import { combinedSaving, priceSavings } from '../../shared/savings.ts';
+import { historySentence, pointTotal, summarizeHistory } from '../../shared/history.ts';
+import { changeText, diffSnapshots, diffSummary, renderDiffMarkdown, type Diff } from '../../shared/compare.ts';
 
 export interface McpOptions {
   config: Config;
@@ -41,7 +46,10 @@ const INSTRUCTIONS = `terraprev reads a Terraform state file (terraform.tfstate)
 architecture, monthly cost from AWS's official price list, rule-based findings, and a CTO brief.
 Start with stack_overview. Every tool takes an optional "state" path; without it the configured state file is used.
 Costs are USD on-demand estimates; traffic-based lines use default usage unless "usage" overrides are passed
-(keys come from estimate_cost). Anything that can't be priced is listed as unpriced, never counted as $0.`;
+(keys come from estimate_cost). Anything that can't be priced is listed as unpriced, never counted as $0.
+Before an apply, preview_plan says what a plan (terraform show -json output) adds, changes and costs.
+compare_stacks compares two state files (staging vs prod). suggest_savings lists priced ways to cut the bill;
+cost_history shows how the bill moved across applies.`;
 
 export function createMcpServer({ config, offline = false, pricers, log = () => {} }: McpOptions): McpServer {
   pricers ??= [new AwsPricer(new AwsOffers(
@@ -59,16 +67,23 @@ export function createMcpServer({ config, offline = false, pricers, log = () => 
       throw new Error(`No state file at ${file}. Run terraform apply first, or pass "state" (for remote state: terraform state pull > stack.tfstate).`);
     }
     const st = statSync(file);
+    if (!st.isFile()) throw new Error(`${file} is a folder; pass the terraform.tfstate file inside it.`);
     const key = `${st.mtimeMs}:${st.size}`;
     const hit = cache.get(file);
     if (hit?.key === key) return hit.stack;
     const stack = (async () => {
-      const parts = buildBase(file, JSON.parse(readFileSync(file, 'utf8')), config.defaultRegion);
+      let parts;
+      try {
+        parts = buildBase(file, JSON.parse(readFileSync(file, 'utf8')), config.defaultRegion);
+      } catch (err) {
+        throw new Error(`Could not read ${file} as Terraform state: ${(err as Error).message}`);
+      }
       const cost = await priceSnapshot(parts, pricers);
       for (const e of cost.errors) log(`price warning: ${e}`);
       return {
         file,
-        snapshot: { ...parts.base, cost, updatedAt: st.mtime.toISOString() },
+        // History is read, never written: asking about a stack shouldn't change it.
+        snapshot: { ...parts.base, cost, updatedAt: st.mtime.toISOString(), history: readHistory(config.historyDir, parts.base.lineage) },
         sources: new SourceIndex(file),
         names: labelMap(parts.state.resources),
       };
@@ -81,7 +96,7 @@ export function createMcpServer({ config, offline = false, pricers, log = () => 
   const server = new McpServer({ name: 'terraprev', version: '0.1.0' }, { instructions: INSTRUCTIONS });
 
   const state = z.string().optional().describe('Path to a terraform.tfstate file. Defaults to the configured stateFile.');
-  const usage = z.record(z.number()).optional().describe('Overrides for traffic-based usage, by key (see usageParams in estimate_cost), e.g. {"aws_lambda_function.worker:requests": 5000000}.');
+  const usage = z.record(z.number().nonnegative()).optional().describe('Overrides for traffic-based usage, by key (see usageParams in estimate_cost), e.g. {"aws_lambda_function.worker:invocations": 5000000}.');
   const freeTier = z.boolean().optional().describe('Apply the AWS Always Free allowances. Default false.');
 
   server.registerTool('stack_overview', {
@@ -138,15 +153,16 @@ export function createMcpServer({ config, offline = false, pricers, log = () => 
         pricingPage: c.pageUrl,
       };
     }).sort((x, y) => y.monthly - x.monthly);
-    const total = items.reduce((s, i) => s + i.monthly, 0);
+    // Totals from the unrounded lines, so they match the page and the brief to the cent.
+    const sum = (kind?: string) => usd(cost.components.filter((c) => !kind || c.kind === kind).reduce((s, c) => s + lines.get(c.id)!.monthly, 0));
     return json({
       currency: cost.currency,
       region: cost.region,
       status: cost.status,
       freeTier: a.free_tier === true,
-      total: usd(total),
-      fixed: usd(items.filter((i) => i.kind === 'fixed').reduce((s, i) => s + i.monthly, 0)),
-      usageBased: usd(items.filter((i) => i.kind === 'usage').reduce((s, i) => s + i.monthly, 0)),
+      total: sum(),
+      fixed: sum('fixed'),
+      usageBased: sum('usage'),
       lines: items,
       usageParams: cost.usage.map((p) => ({ key: p.key, resource: label(p.nodeId), label: p.label, unit: p.unit, value: values[p.key], default: p.default, min: p.min, max: p.max })),
       unpriced: cost.unpriced.map((u) => ({ address: u.address, type: u.type, reason: u.reason })),
@@ -232,6 +248,94 @@ export function createMcpServer({ config, offline = false, pricers, log = () => 
     const { snapshot } = await load(a.state);
     const md = renderMarkdown(buildReport({ snapshot, usage: { ...defaultUsageValues(snapshot), ...a.usage }, freeTier: a.free_tier === true }));
     return { content: [{ type: 'text', text: md }] };
+  });
+
+  server.registerTool('suggest_savings', {
+    title: 'Suggest savings',
+    description: 'Priced ways to cut the bill without removing anything: Graviton instance types, gp3 volumes, 1-year reservations, arm64 Lambdas, idle IPs, log retention, gateway endpoints. Each has the monthly saving at the given usage, what it takes, and the Terraform change. Savings on the same resource overlap; "total" counts each once.',
+    inputSchema: { state, usage, free_tier: freeTier },
+    annotations: { readOnlyHint: true },
+  }, async (a) => {
+    const { snapshot } = await load(a.state);
+    const values = { ...defaultUsageValues(snapshot), ...a.usage };
+    const priced = priceSavings(snapshot.cost.components, snapshot.cost.savings, values, a.free_tier === true);
+    const label = labeller(snapshot.graph.nodes);
+    return json({
+      total: usd(combinedSaving(priced)),
+      savings: priced.map(({ saving: s, monthly }) => ({
+        title: s.title, resource: label(s.nodeId), kind: s.kind, monthly: usd(monthly), ...(s.perUnit ? { perUnit: s.perUnit } : {}),
+        detail: s.detail, caveat: s.caveat, terraformChange: s.change,
+      })),
+    });
+  });
+
+  server.registerTool('cost_history', {
+    title: 'Cost history',
+    description: 'The monthly cost at each apply of this stack (recorded by the snapshot build and the live server, at default usage), what changed since the last apply, and over the last month or so.',
+    inputSchema: { state },
+    annotations: { readOnlyHint: true },
+  }, async (a) => {
+    const { snapshot } = await load(a.state);
+    const points = snapshot.history ?? [];
+    const s = summarizeHistory(points);
+    return json({
+      applies: points.length,
+      summary: points.length > 1 ? historySentence(s) : points.length ? 'Only one apply recorded so far.' : 'No history yet: it is recorded by npm run snapshot (or bin/tf apply) and the live server.',
+      sinceLastApply: s?.previous ? usd(pointTotal(s.last) - pointTotal(s.previous)) : undefined,
+      points: points.map((p) => ({ serial: p.serial, appliedAt: p.appliedAt, monthly: usd(pointTotal(p)), fixed: p.fixed, usageBased: p.usage, resources: p.resourceCount, byCategory: p.byCategory, findings: p.findings })),
+    });
+  });
+
+  const diffJson = (d: Diff) => ({
+    summary: diffSummary(d),
+    before: usd(d.total.before),
+    after: usd(d.total.after),
+    delta: usd(d.total.delta),
+    ...(d.kind === 'plan' ? { resources: d.resources } : { baseStack: d.baseLabel, thisStack: d.targetLabel }),
+    changes: d.nodes.filter((n) => !n.group).map((n) => ({
+      resource: n.label, kind: n.kind, change: changeText(d, n.change), before: usd(n.before), after: usd(n.after), delta: usd(n.delta),
+      ...(n.fields.length ? { configuration: n.fields } : {}), ...(n.attrs.length ? { changedAttributes: n.attrs } : {}),
+      ...(n.unknown ? { mayCostMore: 'some values are only known after apply' } : {}), addresses: n.addresses,
+    })),
+    newFindings: d.findings.added.map((f) => ({ severity: f.severity, title: f.title, recommendation: f.recommendation })),
+    resolvedFindings: d.findings.resolved.map((f) => f.title),
+    markdown: renderDiffMarkdown(d),
+  });
+
+  server.registerTool('preview_plan', {
+    title: 'Preview a plan',
+    description: 'What a Terraform plan will do before it is applied: resources added, changed, replaced and destroyed, the monthly cost before and after, findings it introduces or fixes, and a Markdown summary for a pull request. Takes the JSON from terraform show -json plan.out (or a saved plan file, if terraform is on PATH).',
+    inputSchema: {
+      plan: z.string().describe('Path to terraform show -json output (plan.json), or a saved plan file (plan.out).'),
+      usage,
+      free_tier: freeTier,
+    },
+    annotations: { readOnlyHint: true },
+  }, async (a) => {
+    const file = resolve(a.plan);
+    if (!existsSync(file)) throw new Error(`No plan at ${file}. Make one with: terraform plan -out=plan.out && terraform show -json plan.out > plan.json`);
+    const { parts, cost, compare } = await planComparison(file, readPlan(file), config.defaultRegion, pricers);
+    const snapshot = { ...parts.base, cost };
+    return json(diffJson(diffSnapshots(compare, snapshot, { ...defaultUsageValues(snapshot), ...a.usage }, a.free_tier === true)));
+  });
+
+  server.registerTool('compare_stacks', {
+    title: 'Compare two stacks',
+    description: 'This stack compared with another state file (e.g. prod against staging): resources only in one of them, resources whose configuration or cost differs, the monthly cost of each, and findings only one has.',
+    inputSchema: {
+      state,
+      other: z.string().describe('Path to the other terraform.tfstate to compare with.'),
+      usage,
+      free_tier: freeTier,
+    },
+    annotations: { readOnlyHint: true },
+  }, async (a) => {
+    const other = resolve(a.other);
+    if (!existsSync(other)) throw new Error(`No state file at ${other}.`);
+    const stack = await load(a.state);
+    const parts = buildBase(stack.file, JSON.parse(readFileSync(stack.file, 'utf8')), config.defaultRegion);
+    const compare = await stackComparison(parts, other, config.defaultRegion, pricers);
+    return json(diffJson(diffSnapshots(compare, stack.snapshot, { ...defaultUsageValues(stack.snapshot), ...a.usage }, a.free_tier === true)));
   });
 
   server.registerTool('build_snapshot', {

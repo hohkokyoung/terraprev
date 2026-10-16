@@ -9,8 +9,16 @@ import { Inspector } from './components/Inspector.tsx';
 import { UsageSlider } from './components/UsageSlider.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 import { ReportView } from './components/ReportView.tsx';
+import { ChangesPanel, deltaClass } from './components/ChangesPanel.tsx';
+import { STATIC } from './lib/staticData.ts';
+import { isLiveOnly, isPlanPath, LIVE, useView } from './lib/useView.ts';
+import { ViewSwitch } from './components/ViewSwitch.tsx';
+import { diffSnapshots, diffSummary, formatDelta, gapText } from '../../shared/compare.ts';
 
-type Tab = 'cost' | 'usage' | 'inspect';
+type Tab = 'changes' | 'cost' | 'usage' | 'inspect';
+
+/** Plan preview or stack comparison, embedded by `terraprev build --plan / --compare`. */
+const COMPARE = STATIC?.compare;
 
 /** Diagram PDFs print A4 landscape; everything else (the report) uses the default A4 portrait. */
 function setPrintPage(landscape: boolean) {
@@ -27,7 +35,14 @@ function setPrintPage(landscape: boolean) {
 const PAGE = { width: 1123, height: 794 };
 
 export function App() {
-  const { snapshot, connection, error, progress, lastApply } = useSnapshot();
+  const { snapshot: liveSnapshot, connection, error, progress, lastApply } = useSnapshot();
+  // Live server: the stack itself, or compared with another state file, or after a plan (the header switch).
+  const views = useView(liveSnapshot?.serial);
+  // A plan, or a swapped comparison, shows a stack other than the live one; until it arrives, show the live one alone.
+  const otherShown = views.view.show !== 'live';
+  const snapshot = otherShown && views.viewSnapshot ? views.viewSnapshot : liveSnapshot;
+  const compare = STATIC?.compare ?? (otherShown && !views.viewSnapshot ? undefined : views.compare);
+  const viewPending = views.loading && (otherShown ? !views.viewSnapshot : !views.compare);
   const { values, overrides, set, zeroAll, resetAll, totals, lines, freeTier, setFreeTier } = useUsage(snapshot?.cost, typeof location !== 'undefined' && /[#&]free/.test(location.hash));
   const [sideOpen, setSideOpen] = useState(() => {
     try {
@@ -46,7 +61,7 @@ export function App() {
   };
   const hasFreeTier = !!snapshot?.cost.components.some((c) => c.freeTier);
   const [selected, setSelected] = useState<string>();
-  const [tab, setTab] = useState<Tab>('cost');
+  const [tab, setTab] = useState<Tab>(COMPARE ? 'changes' : 'cost');
   const [showSupporting, setShowSupporting] = useState(false);
   const [showDeps, setShowDeps] = useState(false);
   const [flowMode, setFlowMode] = useState(false);
@@ -111,7 +126,19 @@ export function App() {
     return () => clearTimeout(t);
   }, [lastApply]);
 
-  const nodes = snapshot?.graph.nodes ?? [];
+  // Plan preview / comparison: the "after" diagram, plus what the plan removes drawn faded in place.
+  const diff = useMemo(() => (compare && snapshot ? diffSnapshots(compare, snapshot, values, freeTier) : undefined), [compare, snapshot, values, freeTier]);
+  const nodes = useMemo(() => [...(snapshot?.graph.nodes ?? []), ...(diff?.ghosts.nodes ?? [])], [snapshot, diff]);
+  const edges = useMemo(() => [...(snapshot?.graph.edges ?? []), ...(diff?.ghosts.edges ?? [])], [snapshot, diff]);
+  const ghostEdges = useMemo(() => new Set(diff?.ghosts.edges.map((e) => e.id)), [diff]);
+  const deltas = useMemo(() => new Map(diff?.nodes.filter((n) => Math.abs(n.delta) >= 0.005).map((n) => [n.id, n.delta])), [diff]);
+  const homeTab: Tab = diff ? 'changes' : 'cost';
+  // Switching view lands on what that view is about: the differences or changes, or the cost when live.
+  useEffect(() => {
+    if (STATIC) return;
+    setSelected(undefined);
+    setTab(views.view.against || isPlanPath(views.view.show) ? 'changes' : 'cost');
+  }, [views.view.show, views.view.against]);
   const selectedNode = nodes.find((n) => n.id === selected);
   const select = (id: string | undefined) => {
     setSelected(id);
@@ -119,7 +146,7 @@ export function App() {
       setTab('inspect');
       if (!sideOpen) toggleSide(true);
     }
-    else if (tab === 'inspect') setTab('cost');
+    else if (tab === 'inspect') setTab(homeTab);
   };
 
   const loading = snapshot?.cost.status === 'loading';
@@ -127,7 +154,7 @@ export function App() {
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
 
   return (
-    <div className={`app ${printing ? 'is-printing' : ''}`}>
+    <div className={`app ${printing ? 'is-printing' : ''} ${compare?.kind === 'stacks' ? 'app--stacks' : ''}`}>
       <header className="topbar">
         <div className="brand">
           <span className="brand__mark" aria-hidden>
@@ -137,7 +164,20 @@ export function App() {
         </div>
         <div className="statefile" title={snapshot?.stateFile}>
           <span className={`dot dot--${error ? 'error' : connection}`} />
-          {snapshot ? (
+          {!STATIC && liveSnapshot && <ViewSwitch view={views.view} setView={views.setView} files={views.files} onOpen={views.refreshFiles} />}
+          {snapshot && compare && !STATIC ? null : snapshot && compare ? (
+            <>
+              <span className="modebadge">{compare.kind === 'plan' ? 'Plan preview' : 'Comparison'}</span>
+              <code>{shortPath(snapshot.stateFile)}</code>
+              <span className="muted">
+                {compare.kind === 'plan' ? (
+                  <>nothing applied yet · {snapshot.resourceCount} resources after apply · planned <Ago iso={snapshot.updatedAt} bare /></>
+                ) : (
+                  <>{compare.targetLabel} ({snapshot.resourceCount} resources) compared with {compare.baseLabel} ({compare.base.resourceCount})</>
+                )}
+              </span>
+            </>
+          ) : snapshot ? (
             <>
               <code>{shortPath(snapshot.stateFile)}</code>
               <span className="muted">
@@ -175,17 +215,42 @@ export function App() {
         )}
         {snapshot && (
           <div className={`total ${loading ? 'is-loading' : ''}`}>
-            <span className="total__label">Estimated monthly</span>
+            <span className="total__label">{diff ? (diff.kind === 'plan' ? 'Monthly after apply' : `Monthly · ${diff.targetLabel}`) : 'Estimated monthly'}</span>
             <span className="total__value">{formatUsd(totals.total)}</span>
-            <span className="total__split">
-              {formatUsd(totals.fixed)} always-on · {formatUsd(totals.usage)} usage
-              {freeTier && totals.saved > 0 && <span className="total__free"> · −{formatUsd(totals.saved)} free tier</span>}
-            </span>
+            {diff?.kind === 'plan' ? (
+              <span className="total__split">
+                <b className={`total__delta ${deltaClass(diff.total.delta)}`}>{formatDelta(diff.total.delta)}</b> vs now ({formatUsd(diff.total.before)})
+              </span>
+            ) : diff ? (
+              <span className="total__split">
+                <b className="total__delta is-gap">{gapText(diff.total.delta)}</b> {Math.abs(diff.total.delta) < 0.005 ? 'as' : 'than'} {diff.baseLabel} ({formatUsd(diff.total.before)})
+              </span>
+            ) : (
+              <span className="total__split">
+                {formatUsd(totals.fixed)} always-on · {formatUsd(totals.usage)} usage
+                {freeTier && totals.saved > 0 && <span className="total__free"> · −{formatUsd(totals.saved)} free tier</span>}
+              </span>
+            )}
           </div>
         )}
       </header>
 
       {error && <div className="banner banner--error">{error}</div>}
+      {views.error && (
+        <div className="banner banner--error">
+          Could not {isPlanPath(views.view.show) ? 'read that plan' : views.view.against ? 'compare those stacks' : 'read that stack'}: {views.error}{' '}
+          <button type="button" className="linkish" onClick={() => views.setView(LIVE)}>Back to live</button>
+        </div>
+      )}
+      {viewPending && !views.error && (
+        <div className="banner">{isPlanPath(views.view.show) ? 'Reading and pricing the plan…' : 'Reading and pricing the stack…'}</div>
+      )}
+      {diff && (
+        <div className="banner banner--plan">
+          {diff.kind === 'plan' ? <b>Preview of a plan. Nothing here has been applied.</b> : <b>{diff.targetLabel} compared with {diff.baseLabel}.</b>} {diffSummary(diff)}
+          {diff.kind === 'stacks' && <span className="muted"> The diagram is {diff.targetLabel}; what only {diff.baseLabel} has is drawn dashed where it sits there.</span>}
+        </div>
+      )}
       {downloads.length > 0 && (
         <div className="banner">
           Downloading price lists (first run only):{' '}
@@ -206,7 +271,7 @@ export function App() {
             <ReactFlowProvider>
               <Diagram
                 nodes={nodes}
-                edges={snapshot.graph.edges}
+                edges={edges}
                 showSupporting={showSupporting}
                 showDeps={showDeps}
                 expanded={expanded}
@@ -217,6 +282,9 @@ export function App() {
                 costByNode={totals.byNode}
                 components={snapshot.cost.components}
                 fresh={fresh}
+                changes={diff?.status}
+                deltas={deltas}
+                ghostEdges={ghostEdges}
                 selected={selected}
                 onSelect={select}
               />
@@ -238,6 +306,14 @@ export function App() {
               <input type="checkbox" checked={showDeps} onChange={(e) => setShowDeps(e.target.checked)} />
               All dependencies
             </label>
+            {diff && (
+              <ul className="edgekey changekey" aria-label="Change legend">
+                <li className="is-added">{diff.kind === 'plan' ? 'add' : `only in ${diff.targetLabel}`}</li>
+                <li className="is-changed">{diff.kind === 'plan' ? 'change' : 'differs'}</li>
+                {diff.kind === 'plan' && <li className="is-replaced">replace</li>}
+                <li className="is-removed">{diff.kind === 'plan' ? 'destroy' : `only in ${diff.baseLabel}`}</li>
+              </ul>
+            )}
             <ul className="edgekey" aria-label="Edge legend">
               <li className="k-flow">traffic / events</li>
               <li className="k-uses">uses (click a node)</li>
@@ -258,17 +334,19 @@ export function App() {
         </button>
         <aside className="side" hidden={!sideOpen}>
           <nav className="tabs" role="tablist">
-            {(['cost', 'usage', 'inspect'] as const).map((t) => (
+            {((diff ? ['changes', 'cost', 'usage', 'inspect'] : ['cost', 'usage', 'inspect']) as Tab[]).map((t) => (
               <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'is-on' : ''} onClick={() => setTab(t)} disabled={t === 'inspect' && !selectedNode}>
-                {t === 'cost' ? 'Cost' : t === 'usage' ? `Usage${snapshot ? ` (${snapshot.cost.usage.length})` : ''}` : selectedNode ? 'Resource' : 'Resource'}
+                {t === 'changes' ? `${diff?.kind === 'stacks' ? 'Differences' : 'Changes'} (${diff?.nodes.filter((n) => !n.group && !n.supporting).length ?? 0})` : t === 'cost' ? 'Cost' : t === 'usage' ? `Usage${snapshot ? ` (${snapshot.cost.usage.length})` : ''}` : selectedNode ? 'Resource' : 'Resource'}
               </button>
             ))}
           </nav>
           <div className="side__body">
             {!snapshot ? null : loading && !snapshot.cost.components.length ? (
               <p className="muted pad">Fetching AWS prices…</p>
+            ) : tab === 'changes' && diff ? (
+              <ChangesPanel diff={diff} onSelect={select} />
             ) : tab === 'inspect' && selectedNode ? (
-              <Inspector edges={snapshot.graph.edges} nodesById={nodeById} lines={lines} node={selectedNode} cost={snapshot.cost} values={values} overrides={overrides} setUsage={set} expanded={expanded.has(selectedNode.id)} onToggleExpand={() => toggleExpand(selectedNode.id)} onSelect={select} stateSerial={snapshot.serial} />
+              <Inspector change={diff?.nodes.find((n) => n.id === selectedNode.id)} compare={diff} freeTier={freeTier} edges={edges} nodesById={nodeById} lines={lines} node={selectedNode} cost={snapshot.cost} values={values} overrides={overrides} setUsage={set} expanded={expanded.has(selectedNode.id)} onToggleExpand={() => toggleExpand(selectedNode.id)} onSelect={select} stateSerial={snapshot.serial} />
             ) : tab === 'usage' ? (
               <div className="usagelist">
                 <p className="muted small">
@@ -299,13 +377,13 @@ export function App() {
                 ))}
               </div>
             ) : (
-              <CostPanel cost={snapshot.cost} nodes={nodes} byNode={totals.byNode} total={totals.total} onSelect={select} />
+              <CostPanel cost={snapshot.cost} nodes={nodes} byNode={totals.byNode} total={totals.total} usage={values} freeTier={freeTier} history={compare ? undefined : snapshot.history} onSelect={select} />
             )}
           </div>
         </aside>
       </main>
       {reportOpen && snapshot && (
-        <ReportView snapshot={snapshot} usage={values} freeTier={freeTier} costByNode={totals.byNode} onClose={() => setReportOpen(false)} autoPrint={autoReport} />
+        <ReportView snapshot={snapshot} usage={values} freeTier={freeTier} costByNode={totals.byNode} diff={diff} view={isLiveOnly(views.view) ? undefined : views.view} onClose={() => setReportOpen(false)} autoPrint={autoReport} />
       )}
     </div>
   );

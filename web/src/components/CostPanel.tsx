@@ -1,17 +1,25 @@
 import { useMemo, useState } from 'react';
-import type { Category, CostReport, GraphNode } from '../../../shared/types.ts';
+import type { Category, CostReport, GraphNode, HistoryPoint } from '../../../shared/types.ts';
 import { formatUsd } from '../../../shared/cost.ts';
 import { CATEGORY_LABEL, categoryVar } from '../lib/categories.ts';
+import { combinedSaving, priceSavings } from '../../../shared/savings.ts';
+import { SavingsList } from './Savings.tsx';
+import { HistoryChart } from './HistoryChart.tsx';
 
 interface Props {
   cost: CostReport;
   nodes: GraphNode[];
   byNode: Map<string, number>;
   total: number;
+  /** Slider values and free tier, so savings are priced like the bill. */
+  usage: Record<string, number>;
+  freeTier: boolean;
+  /** Earlier applies of this stack (none for previews and comparisons). */
+  history?: HistoryPoint[];
   onSelect: (id: string) => void;
 }
 
-export function CostPanel({ cost, nodes, byNode, total, onSelect }: Props) {
+export function CostPanel({ cost, nodes, byNode, total, usage, freeTier, history, onSelect }: Props) {
   const [showFree, setShowFree] = useState(false);
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const usageNodes = useMemo(() => new Set(cost.components.filter((c) => c.kind === 'usage').map((c) => c.nodeId)), [cost]);
@@ -37,6 +45,10 @@ export function CostPanel({ cost, nodes, byNode, total, onSelect }: Props) {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [cost.free]);
 
+  const savings = useMemo(() => priceSavings(cost.components, cost.savings, usage, freeTier), [cost, usage, freeTier]);
+  const saveable = useMemo(() => combinedSaving(savings), [savings]);
+  const [allSavings, setAllSavings] = useState(false);
+
   const max = rows[0]?.monthly || 1;
 
   return (
@@ -56,6 +68,33 @@ export function CostPanel({ cost, nodes, byNode, total, onSelect }: Props) {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {history && history.length > 0 && (
+        <section>
+          <h3>Over time</h3>
+          <HistoryChart points={history} />
+        </section>
+      )}
+
+      {savings.length > 0 && (
+        <section className="savingsbox">
+          <h3>
+            Ways to save
+            {saveable >= 0.005 && (
+              <span className="savingsbox__total">
+                up to −{formatUsd(saveable)}/mo{total > 0 ? ` (${Math.round((saveable / total) * 100)}%)` : ''}
+              </span>
+            )}
+          </h3>
+          <SavingsList items={allSavings ? savings : savings.slice(0, 4)} onSelect={onSelect} />
+          {savings.length > 4 && (
+            <button type="button" className="disclosure savingsbox__more" aria-expanded={allSavings} onClick={() => setAllSavings(!allSavings)}>
+              {allSavings ? 'Fewer' : `${savings.length - 4} more`}
+            </button>
+          )}
+          <p className="muted small savingsbox__note">Priced from the same AWS price lists, at your usage settings. Savings on the same resource don't add up; the total counts each once.</p>
         </section>
       )}
 

@@ -56,6 +56,7 @@ export function UsageSlider({ param, value, overridden, onChange }: Props) {
         min={0}
         max={STEPS}
         value={Math.min(STEPS, toPos(param, value))}
+        style={{ ['--fill' as string]: `${(Math.min(STEPS, toPos(param, value)) / STEPS) * 100}%` }}
         onChange={(e) => onChange(fromPos(param, Number(e.target.value)))}
       />
       <div className="slider__foot">

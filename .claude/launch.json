@@ -2,6 +2,18 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "demo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "server/src/cli/dev.ts"
+      ],
+      "env": {
+        "TERRAPREV_STATE": "demo.tfstate",
+        "PORT": "4610"
+      },
+      "port": 4600
+    },
+    {
       "name": "api",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

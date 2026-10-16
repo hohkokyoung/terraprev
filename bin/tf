@@ -2,9 +2,41 @@
 # Runs terraform, then rebuilds the terraprev snapshot when the state may have changed.
 #   bin/tf apply          (or symlink it onto your PATH as `tf`)
 # Rebuilds even when apply fails part-way: a partial apply still changes state.
+# `tf plan` also writes a preview of the plan: what it adds, changes and destroys, and the cost change.
 # Extra build flags via env, e.g. TERRAPREV_BUILD_ARGS="--pdf --theme dark" bin/tf apply
 
 TERRAPREV_HOME="$(cd "$(dirname "$(realpath "$0")")/.." && pwd)"
+build() { node "$TERRAPREV_HOME/server/src/cli/build.ts" "$@" $TERRAPREV_BUILD_ARGS; }
+
+if [ "$1" = "plan" ]; then
+  # Preview exactly the plan terraform made: use its -out file, or save one to a temp file.
+  out="" prev=""
+  for a in "$@"; do
+    case "$a" in -out=*|--out=*) out="${a#*=}" ;; esac
+    [ "$prev" = "-out" ] || [ "$prev" = "--out" ] && out="$a"
+    prev="$a"
+  done
+  tmp=""
+  if [ -z "$out" ]; then
+    tmp="$(mktemp "${TMPDIR:-/tmp}/terraprev-plan.XXXXXX")"
+    out="$tmp"
+    terraform "$@" -out="$out"
+  else
+    terraform "$@"
+  fi
+  status=$?
+  # 0 = no changes, 2 = changes (with -detailed-exitcode); 1 = error, nothing to preview.
+  if [ $status -ne 1 ] && [ -f "$out" ]; then
+    json="$(mktemp "${TMPDIR:-/tmp}/terraprev-plan.XXXXXX")"
+    # Plan JSON holds every value in plain text, secrets included: keep it only as long as the build needs it.
+    if terraform show -json "$out" > "$json"; then
+      build --plan "$json" --dir "$PWD" || echo "[terraprev] plan preview failed (terraform result unaffected)" >&2
+    fi
+    rm -f "$json"
+  fi
+  [ -n "$tmp" ] && rm -f "$tmp" && echo "[terraprev] the plan was saved to a temporary file for the preview and removed; run terraform apply as usual" >&2
+  exit $status
+fi
 
 terraform "$@"
 status=$?
@@ -13,7 +45,7 @@ case "$1" in
   apply|destroy|import|refresh|state|taint|untaint)
     state="$PWD/terraform.tfstate"
     if [ -f "$state" ]; then
-      node "$TERRAPREV_HOME/server/src/cli/build.ts" --state "$state" $TERRAPREV_BUILD_ARGS || echo "[terraprev] snapshot failed (terraform result unaffected)" >&2
+      build --state "$state" || echo "[terraprev] snapshot failed (terraform result unaffected)" >&2
     fi
     ;;
 esac

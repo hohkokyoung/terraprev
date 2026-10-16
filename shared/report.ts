@@ -5,11 +5,16 @@ import type { Category, GraphNode, Insight, InsightSeverity, Snapshot } from './
 import { componentQuantity, formatQuantity, formatUsd, lineCosts, prettyUnit } from './cost.ts';
 import { awsName } from './awsNames.ts';
 import { pathsInto } from './flow.ts';
+import { combinedSaving, priceSavings } from './savings.ts';
+import { historySentence, pointTotal, summarizeHistory } from './history.ts';
+import { changeText, diffSummary, fieldText, formatDelta, gapText, type Diff } from './compare.ts';
 
 export interface ReportInput {
   snapshot: Snapshot;
   usage: Record<string, number>;
   freeTier: boolean;
+  /** A plan preview or comparison: the brief leads with what changes. */
+  diff?: Diff;
 }
 
 export interface Report {
@@ -40,6 +45,23 @@ export interface Report {
     assumptions: { resource: string; label: string; value: string }[];
     unpriced: { address: string; reason: string }[];
     sources: { name: string; published?: string; url?: string }[];
+    /** Cheaper ways to run the same stack, biggest first; `total` counts overlapping ones once. */
+    savings: { items: { title: string; resource: string; detail: string; caveat?: string; change?: string; monthly: number; perUnit?: string }[]; total: number };
+    /** Applies so far (newest last), and what changed over the last month or so. */
+    history?: { sentence?: string; points: { serial: number; date: string; total: number; fixed: number }[] };
+  };
+  changes?: {
+    kind: Diff['kind'];
+    summary: string;
+    before: number;
+    after: number;
+    delta: number;
+    baseLabel: string;
+    targetLabel: string;
+    rows: { name: string; kind: string; change: string; what: string; before: number; after: number; delta: number; unknown: boolean }[];
+    findingsAdded: string[];
+    findingsResolved: string[];
+    unknownAfterApply: string[];
   };
   findings: { counts: Record<InsightSeverity, number>; items: (Insight & { resourceNames: string[] })[] };
   security: {
@@ -68,7 +90,7 @@ const pct = (n: number) => `${Math.round(n * 100)}%`;
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 const kindOf = (n: GraphNode) => awsName(n.type)?.full ?? n.type;
 
-export function buildReport({ snapshot, usage, freeTier }: ReportInput): Report {
+export function buildReport({ snapshot, usage, freeTier, diff }: ReportInput): Report {
   const { graph, cost } = snapshot;
   const nodes = new Map(graph.nodes.map((n) => [n.id, n]));
   // Disambiguate components that share a name (e.g. an API Gateway and a Lambda both called "tf-lab-api").
@@ -121,6 +143,18 @@ export function buildReport({ snapshot, usage, freeTier }: ReportInput): Report 
   if (total) drivers.push(`${pct(fixed / total)} of the bill is always-on and won't shrink with low traffic; the rest scales with the usage assumptions below.`);
 
   const assumptions = cost.usage.map((p) => ({ resource: label(p.nodeId), label: p.label, value: `${formatQuantity(usage[p.key] ?? p.default)} ${p.unit}` }));
+
+  const priced = priceSavings(cost.components, cost.savings, usage, freeTier);
+  const savings = {
+    items: priced.map(({ saving: s, monthly }) => ({ title: s.title, resource: label(s.nodeId), detail: s.detail, caveat: s.caveat, change: s.change, monthly, perUnit: s.perUnit })),
+    total: combinedSaving(priced),
+  };
+  if (savings.total >= 0.005 && total) drivers.push(`About ${formatUsd(savings.total)}/month (${pct(savings.total / total)}) could be saved without removing anything; see Ways to cut the bill.`);
+  const trend = summarizeHistory(snapshot.history);
+  const history = trend && snapshot.history!.length > 1
+    ? { sentence: historySentence(trend), points: snapshot.history!.slice(-8).map((p) => ({ serial: p.serial, date: utc(p.appliedAt).slice(0, 10), total: pointTotal(p), fixed: p.fixed })) }
+    : undefined;
+  if (history?.sentence) drivers.push(history.sentence);
 
   // ── architecture ──
   const vpcs = graph.nodes.filter((n) => n.groupKind === 'vpc');
@@ -211,9 +245,35 @@ export function buildReport({ snapshot, usage, freeTier }: ReportInput): Report 
       : 'The review found no high or medium-severity issues.',
   ];
   if (snapshot.environment) summary.push(`Note: this state was applied to a ${snapshot.environment}.`);
+  const changes: Report['changes'] = diff && {
+    kind: diff.kind,
+    summary: diffSummary(diff),
+    before: diff.total.before,
+    after: diff.total.after,
+    delta: diff.total.delta,
+    baseLabel: diff.baseLabel,
+    targetLabel: diff.targetLabel,
+    rows: diff.nodes.filter((n) => !n.group && (!n.supporting || n.change !== 'changed')).map((n) => ({
+      name: n.label, kind: n.kind, change: changeText(diff, n.change),
+      what: n.fields.length ? n.fields.map((f) => fieldText(diff, f)).join('; ') : n.attrs.slice(0, 4).join(', '),
+      before: n.before, after: n.after, delta: n.delta, unknown: n.unknown,
+    })),
+    findingsAdded: diff.findings.added.map((f) => `${SEVERITY_LABEL[f.severity]}: ${f.title}`),
+    findingsResolved: diff.findings.resolved.map((f) => f.title),
+    unknownAfterApply: diff.unknownAfterApply,
+  };
+  if (diff) {
+    summary.unshift(diff.kind === 'plan'
+      ? `This brief describes the stack **as it will be after the plan is applied**. The plan changes the bill by **${formatDelta(diff.total.delta)}/month** (${formatUsd(diff.total.before)} → ${formatUsd(diff.total.after)}): ${diffSummary(diff).split(' · ')[0]}.`
+      : `This brief describes **${diff.targetLabel}**, compared with ${diff.baseLabel}. It costs **${gapText(diff.total.delta)}** a month (${formatUsd(diff.total.after)} for ${diff.targetLabel}, ${formatUsd(diff.total.before)} for ${diff.baseLabel}).`);
+  }
 
   const kpis = [
-    { label: 'Estimated monthly', value: formatUsd(total), note: freeTier ? 'free tier applied' : 'on-demand, no free tier' },
+    {
+      label: diff?.kind === 'stacks' ? `Monthly · ${diff.targetLabel}` : 'Estimated monthly',
+      value: formatUsd(total),
+      note: diff?.kind === 'stacks' ? `${gapText(diff.total.delta)} than ${diff.baseLabel} (${formatUsd(diff.total.before)})` : freeTier ? 'free tier applied' : 'on-demand, no free tier',
+    },
     { label: 'Always-on', value: formatUsd(fixed), note: total ? `${pct(fixed / total)} of total` : undefined },
     { label: 'Components', value: String(real.length), note: `${services.size} AWS services` },
     { label: 'Availability zones', value: String(azs.size || '–') },
@@ -226,21 +286,33 @@ export function buildReport({ snapshot, usage, freeTier }: ReportInput): Report 
     .sort((a, b) => (b.monthly ?? 0) - (a.monthly ?? 0) || a.name.localeCompare(b.name, 'en') || a.address.localeCompare(b.address, 'en'));
 
   return {
-    title: `${vpcs[0]?.label.replace(/-vpc$/, '') ?? 'Infrastructure'}: architecture & cost brief`,
+    title: diff?.kind === 'stacks'
+      ? `${diff.targetLabel} vs ${diff.baseLabel}: architecture & cost comparison`
+      : `${vpcs[0]?.label.replace(/-vpc$/, '') ?? 'Infrastructure'}: architecture & cost brief`,
     id: fingerprint({
       lineage: snapshot.lineage,
       serial: snapshot.serial,
+      history: (snapshot.history ?? []).map((p) => [p.serial, p.fixed, p.usage]),
+      diff: diff && [diff.kind, diff.baseLabel, diff.total.before, diff.nodes.map((n) => `${n.id}:${n.change}`)],
       prices: [...cost.sources].map((x) => `${x.name}@${x.publishedAt ?? ''}`).sort(),
       usage: Object.keys(usage).sort().map((k) => [k, usage[k]]),
       freeTier,
     }),
-    meta: [
-      { label: 'Source', value: snapshot.stateFile.split('/').slice(-2).join('/') },
-      { label: 'State serial', value: String(snapshot.serial) },
-      { label: 'Region', value: cost.region },
-      { label: 'Terraform', value: snapshot.terraformVersion },
-      { label: 'Last applied', value: utc(snapshot.updatedAt) },
-    ],
+    meta: diff?.kind === 'plan'
+      ? [
+        { label: 'Plan', value: snapshot.stateFile.split(/[\\/]/).slice(-2).join('/') },
+        { label: 'Region', value: cost.region },
+        { label: 'Terraform', value: snapshot.terraformVersion },
+        { label: 'Planned', value: utc(snapshot.updatedAt) },
+      ]
+      : [
+        { label: diff?.kind === 'stacks' ? diff.targetLabel : 'Source', value: snapshot.stateFile.split(/[\\/]/).slice(-2).join('/') },
+        ...(diff?.kind === 'stacks' ? [{ label: `Compared with ${diff.baseLabel}`, value: diff.baseFile.split(/[\\/]/).slice(-2).join('/') }] : []),
+        { label: 'State serial', value: String(snapshot.serial) },
+        { label: 'Region', value: cost.region },
+        { label: 'Terraform', value: snapshot.terraformVersion },
+        { label: 'Last applied', value: utc(snapshot.updatedAt) },
+      ],
     summary,
     kpis,
     architecture: { overview, tiers, paths, network },
@@ -250,7 +322,10 @@ export function buildReport({ snapshot, usage, freeTier }: ReportInput): Report 
       sources: cost.sources
         .map((s) => ({ name: s.name.replace('AWS Price List · ', ''), published: s.publishedAt?.slice(0, 10), url: s.pageUrl }))
         .sort((a, b) => a.name.localeCompare(b.name, 'en')),
+      savings,
+      history,
     },
+    changes,
     findings: { counts, items },
     security: {
       entryPoints: [...entry].sort((a, b) => a.localeCompare(b, 'en')),
@@ -263,6 +338,7 @@ export function buildReport({ snapshot, usage, freeTier }: ReportInput): Report 
       'Prices are on-demand list prices in USD from the public AWS Price List API for the region above; a month is 730 hours.',
       `Usage-based charges use the stated assumptions. ${freeTier ? 'AWS Always Free allowances are applied once per account.' : 'Free tier is not applied.'}`,
       'Not included: savings plans / reserved capacity, taxes, support plans, data transfer out to the internet, and resources not priced (listed above).',
+      'Ways to cut the bill are priced from the same price lists: an alternative configuration (or a 1-year no-upfront reservation) priced by the same rules, at the same usage.',
       'Findings are derived from resource attributes in state; they flag configuration, not observed runtime behaviour.',
     ],
     mermaid: toMermaid(graph.nodes, graph.edges, byNode),
@@ -312,6 +388,20 @@ export function renderMarkdown(r: Report): string {
   md.push('## Executive summary', '', ...r.summary.flatMap((p) => [p, '']));
   table(['Metric', 'Value', ''], r.kpis.map((k) => [k.label, `**${k.value}**`, k.note ?? '']));
 
+  if (r.changes) {
+    const c = r.changes;
+    const plan = c.kind === 'plan';
+    md.push(plan ? '## What this plan changes' : `## How ${c.targetLabel} differs from ${c.baseLabel}`, '', c.summary, '');
+    if (c.rows.length) {
+      table(['Resource', plan ? 'Change' : 'Difference', plan ? 'Before' : c.baseLabel, plan ? 'After' : c.targetLabel, plan ? 'Δ / month' : `${c.targetLabel} vs ${c.baseLabel}`],
+        c.rows.map((x) => [`${x.name} · ${x.kind}`, `${x.change}${x.what ? ` (${x.what})` : ''}`, x.before ? formatUsd(x.before) : '–', `${x.after ? formatUsd(x.after) : '–'}${x.unknown ? ' ⚠' : ''}`, formatDelta(x.delta)]),
+        ['---', '---', '---:', '---:', '---:']);
+    }
+    if (c.findingsAdded.length) md.push(plan ? '**New findings**' : `**Findings only in ${c.targetLabel}**`, '', ...c.findingsAdded.map((f) => `- ${f}`), '');
+    if (c.findingsResolved.length) md.push(plan ? '**Resolved by this plan**' : `**Findings only in ${c.baseLabel}**`, '', ...c.findingsResolved.map((f) => `- ~~${f}~~`), '');
+    if (c.unknownAfterApply.length) md.push(`_⚠ Some values are only known after apply, so these may cost more than shown: ${c.unknownAfterApply.map((a) => '`' + a + '`').join(', ')}._`, '');
+  }
+
   md.push('## Architecture', '', ...r.architecture.overview.map((o) => `- ${o}`), '', '```mermaid', r.mermaid, '```', '');
   md.push('### Components by tier', '');
   for (const t of r.architecture.tiers) md.push(`**${t.tier}**`, '', ...t.items.map((i) => `- ${i.name} · ${i.kind}${i.note ? ` · ${i.note}` : ''}`), '');
@@ -340,6 +430,16 @@ export function renderMarkdown(r: Report): string {
   md.push('### By resource', '');
   table(['Resource', 'Type', 'Monthly', 'Share'], r.cost.top.map((t) => [t.name, t.kind, `${t.usageBased ? '~' : ''}${formatUsd(t.monthly)}`, pct(t.share)]), ['---', '---', '---:', '---:']);
   md.push('_~ includes usage-based charges._', '');
+  if (r.cost.savings.items.length) {
+    md.push('### Ways to cut the bill', '');
+    if (r.cost.savings.total >= 0.005) md.push(`Up to **${formatUsd(r.cost.savings.total)}/month** together (savings on the same resource count once).`, '');
+    table(['Change', 'Resource', 'Saves / month', 'What it takes'], r.cost.savings.items.map((s) => [s.title + (s.change ? ' · `' + s.change.split('\n')[0] + '`' : ''), s.resource, s.monthly >= 0.005 ? formatUsd(s.monthly) : s.perUnit ?? '-', s.caveat ?? '']), ['---', '---', '---:', '---']);
+  }
+  if (r.cost.history) {
+    md.push('### Cost over time', '');
+    if (r.cost.history.sentence) md.push(r.cost.history.sentence, '');
+    table(['Applied', 'State serial', 'Always-on', 'Total (default usage)'], r.cost.history.points.map((p) => [p.date, String(p.serial), formatUsd(p.fixed), formatUsd(p.total)]), ['---', '---:', '---:', '---:']);
+  }
   if (r.cost.assumptions.length) {
     md.push('### Usage assumptions', '');
     table(['Resource', 'Assumption', 'Value'], r.cost.assumptions.map((a) => [a.resource, a.label, a.value]), ['---', '---', '---:']);

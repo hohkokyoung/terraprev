@@ -43,5 +43,6 @@ export async function estimate(
     free: results.flatMap((r) => r.free),
     sources: results.flatMap((r) => r.sources),
     errors: results.flatMap((r) => r.errors),
+    savings: results.flatMap((r) => r.savings),
   };
 }
