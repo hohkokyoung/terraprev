@@ -10,9 +10,9 @@ Point terraprev at a `terraform.tfstate` and you get:
 
 It runs on your machine: no AWS account, no credentials, nothing uploaded. It also works with emulators such as LocalStack or floci, showing what the same stack would cost on real AWS.
 
-![terraprev feature tour: apply, diagram, cost, line items, usage sliders, data flow, IAM, CTO brief, findings, dark mode](docs/teaser.webp)
+![terraprev in 15 seconds: the snapshot page with the diagram and monthly bill, a line-by-line cost breakdown, findings with fixes, and an AI assistant asking terraprev what drives the bill](docs/teaser.webp)
 
-▶ [Watch the full walkthrough (40 s, 1080p)](https://github.com/user-attachments/assets/7b04d45c-6bab-4694-8a38-c2935a35b517)
+▶ [Watch the launch video (24 s, 1080p, with sound)](https://github.com/user-attachments/assets/4c07746c-11fa-41d2-91a4-96ae6d989016)
 
 ## Features
 
@@ -148,4 +148,4 @@ npm run typecheck
 | An AWS display name | `shared/awsNames.ts` |
 | Another cloud | implement `ProviderPricer` in `server/src/pricing/types.ts` |
 
-The demo video is made with [Remotion](https://www.remotion.dev) from screenshots of a real snapshot: `npm run capture` (needs `out/terraprev.html`), then, in `video/`, `npm run teaser` (the looping `docs/teaser.webp` at the top of this page) and `npm run render` (the full video, `video/out/demo.mp4`). GitHub only plays video it hosts, so to update the walkthrough link drag that MP4 into a GitHub issue or comment box and use the link it gives.
+The videos are made with [Remotion](https://www.remotion.dev) from screenshots of a real snapshot, following the [/brag-slim](https://github.com/latent-spaces/brag) recipe: `npm run capture` (needs `out/terraprev.html`), then, in `video/`, `npm run teaser` (the loop at the top of this page, `docs/teaser.webp`) and `npm run render` (the launch video with its soundtrack, `video/out/brag.mp4`, plus its poster `brag.jpg`). The soundtrack is synthesised by `video/brag-audio.ts`, with no samples. Both videos take their timings from `video/src/brag-timeline.ts`, so picture and sound stay in sync. The earlier 40-second feature tour is still there: `npm run render:tour`. GitHub only plays video it hosts, so to update the video link, drag the MP4 into a GitHub issue or comment box and use the link it gives.

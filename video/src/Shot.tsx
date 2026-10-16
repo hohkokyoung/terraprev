@@ -14,8 +14,8 @@ export const ease = Easing.bezier(0.5, 0, 0.1, 1);
 export const PACE = 1;
 
 /** The current time in timeline units (30 per second at PACE 1), whatever fps the video renders at. */
-export function useT() {
-  return (useCurrentFrame() * 30 * PACE) / useVideoConfig().fps;
+export function useT(pace = PACE) {
+  return (useCurrentFrame() * 30 * pace) / useVideoConfig().fps;
 }
 
 export const at = (shot: ShotName, key: string): Rect => (data.shots[shot] as Record<string, Rect>)[key];
@@ -37,10 +37,12 @@ export interface ShotProps {
   focus: { from: number; rect: Rect | null; zoom?: number; cut?: boolean }[];
   /** Cursor waypoints in page px; `click` shows a ripple on arrival. */
   cursor?: { at: number; x: number; y: number; click?: boolean }[];
+  /** Overrides PACE for this shot (units per 30 fps frame). */
+  pace?: number;
 }
 
-export function Shot({ w, h, images, focus, cursor }: ShotProps) {
-  const f = useT();
+export function Shot({ w, h, images, focus, cursor, pace }: ShotProps) {
+  const f = useT(pace);
   const k = w / data.width; // page px → viewport px
 
   const camFor = (r: Rect | null, maxZoom: number): Cam => {

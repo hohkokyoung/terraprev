@@ -4,3 +4,5 @@ dist/
 *.tfstate
 *.tfstate.backup
 out/
+brag-output/
+video/public/brag.wav

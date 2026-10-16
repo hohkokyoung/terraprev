@@ -5,8 +5,10 @@
   "scripts": {
     "capture": "node capture.ts",
     "studio": "remotion studio src/index.ts",
-    "render": "remotion render src/index.ts Demo out/demo.mp4 --crf=20 --x264-preset=slow",
-    "teaser": "remotion render src/index.ts Teaser out/teaser --sequence --image-format=jpeg --jpeg-quality=92 && python webp.py out/teaser ../docs/teaser.webp 20"
+    "audio": "node brag-audio.ts",
+    "render": "node brag-audio.ts && remotion render src/index.ts Brag out/brag.mp4 --crf=18 --x264-preset=slow && remotion still src/index.ts Brag out/brag.jpg --frame=0 --jpeg-quality=92",
+    "render:tour": "remotion render src/index.ts Demo out/demo.mp4 --crf=20 --x264-preset=slow",
+    "teaser": "remotion render src/index.ts BragLoop out/teaser --sequence --image-format=jpeg --jpeg-quality=92 && python webp.py out/teaser ../docs/teaser.webp 20"
   },
   "dependencies": {
     "@fontsource/inter": "5.3.0",
