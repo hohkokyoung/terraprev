@@ -36,6 +36,7 @@ It runs on your machine: no AWS account, no credentials, nothing uploaded. It al
 - **Findings with fixes.** Rule-based checks for disabled backups, unencrypted storage, IMDSv1, open ports and more.
 - **One snapshot file.** A self-contained HTML page that opens offline, plus an optional one-page diagram PDF. The same inputs always give byte-identical files.
 - **Always current.** `bin/tf` rebuilds the snapshot on every apply; live mode updates the page within a second.
+- **Ask your AI assistant.** An MCP server lets Claude, Cursor and other assistants read the same diagram, costs and findings. See [MCP](#mcp).
 
 ## Quick start
 
@@ -57,6 +58,42 @@ TERRAPREV_BUILD_ARGS="--pdf --report" tf apply   # also write the PDFs
 ```
 
 **Live mode.** `npm run dev` serves http://localhost:4600 and updates within a second of each apply, highlighting what changed.
+
+## MCP
+
+terraprev also runs as an [MCP](https://modelcontextprotocol.io) server, so an AI assistant can answer questions like *"what does this stack cost, and what's driving it?"* or *"what can reach the database?"* from your state file. It uses the same code as the snapshot, and runs locally over stdio.
+
+Claude Code:
+
+```bash
+claude mcp add terraprev -- node ~/terraprev/server/src/cli/mcp.ts --state ~/my-stack/terraform.tfstate
+```
+
+Other clients (Claude Desktop, Cursor…) take the same command in their JSON config:
+
+```json
+{
+  "mcpServers": {
+    "terraprev": {
+      "command": "node",
+      "args": ["/path/to/terraprev/server/src/cli/mcp.ts", "--state", "/path/to/terraform.tfstate"]
+    }
+  }
+}
+```
+
+`--state` is optional (default: `stateFile` in config), and every tool also takes a `state` path, so one server can answer for several stacks. `--offline` never downloads prices. Run `npm run snapshot` once first so the price cache is ready; otherwise the first call waits about a minute for the download.
+
+| Tool | Returns |
+|---|---|
+| `stack_overview` | Summary, monthly total, top cost lines, finding counts, every resource |
+| `estimate_cost` | Every cost line (quantity × unit price, SKU, price page), usage assumptions, unpriced resources. Takes `usage` overrides and `free_tier` |
+| `list_findings` | Findings with what was seen and how to fix it, optionally by severity |
+| `describe_resource` | One resource: configuration, location, connections, paths that reach it, IAM and security groups, cost, findings, its `.tf` block |
+| `get_brief` | The CTO brief as Markdown |
+| `build_snapshot` | Writes the HTML snapshot, and optionally the PDFs and brief |
+
+The tools return what the page shows: sensitive values never appear in them.
 
 ## Options
 

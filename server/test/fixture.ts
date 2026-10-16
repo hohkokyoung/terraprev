@@ -1,5 +1,7 @@
 // A small but realistic state: VPC with public/private subnets, ALB → ASG, SQS → Lambda, RDS with a sensitive password.
 
+import { OfferSet, type AwsOffers, type OfferRow } from '../src/pricing/aws/offers.ts';
+
 export const SECRET = 'Sup3rS3cretPassw0rd!';
 
 const res = (type: string, name: string, attrs: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
@@ -81,3 +83,29 @@ export function fixtureState() {
     ],
   };
 }
+
+const row = (usageType: string, price: number, unit: string, attrs: Record<string, string> = {}, extra: Partial<OfferRow> = {}): OfferRow => ({
+  sku: `SKU-${usageType}-${price}`, usageType, operation: '', unit, price, from: 0, to: null, desc: '', attrs, ...extra,
+});
+
+/** Offline stand-in for the AWS price list with real us-east-1 prices. */
+const OFFERS: Record<string, OfferRow[]> = {
+  AmazonEC2: [
+    row('BoxUsage:t3.small', 0.0208, 'Hrs', { 'Product Family': 'Compute Instance', 'License Model': 'No License required' }),
+    row('EBS:VolumeUsage.gp3', 0.08, 'GB-Mo'),
+  ],
+  AmazonVPC: [row('USE1-PublicIPv4:InUseAddress', 0.005, 'Hrs')],
+  AWSELB: [row('LoadBalancerUsage', 0.0225, 'Hrs', {}, { operation: 'LoadBalancing:Application' }), row('LCUUsage', 0.008, 'LCU-Hrs', {}, { operation: 'LoadBalancing:Application' })],
+  AWSQueueService: [row('Requests-RBP', 0.0000004, 'Requests')],
+  AWSLambda: [row('Request-ARM', 0.0000002, 'Requests'), row('Lambda-GB-Second-ARM', 0.0000133334, 'Lambda-GB-Second')],
+  AmazonRDS: [
+    row('InstanceUsage:db.t3.micro', 0.018, 'Hrs', { 'Product Family': 'Database Instance', 'Instance Type': 'db.t3.micro', 'Database Engine': 'PostgreSQL', 'Deployment Option': 'Single-AZ', 'License Model': 'No license required' }),
+    row('RDS:GP3-Storage', 0.115, 'GB-Mo', { 'Product Family': 'Database Storage', 'Database Engine': 'PostgreSQL' }),
+    row('RDS:ChargedBackupUsage', 0.095, 'GB-Mo', { 'Database Engine': 'Any' }),
+  ],
+  AmazonDynamoDB: [row('ReadRequestUnits', 0.000000125, 'ReadRequestUnits'), row('WriteRequestUnits', 0.000000625, 'WriteRequestUnits'), row('TimedStorage-ByteHrs', 0.25, 'GB-Mo')],
+};
+
+export const fakeOffers = {
+  load: async (service: string, region: string) => new OfferSet({ service, region, rows: OFFERS[service] ?? [], fetchedAt: 'now' }),
+} as unknown as AwsOffers;

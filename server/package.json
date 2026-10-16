@@ -8,7 +8,9 @@
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",
-    "hono": "^4.10.0"
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "hono": "^4.10.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
