@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, type Edge, type Node } from '@xyflow/react';
 import type { CostComponent, GraphEdge, GraphNode } from '../../../shared/types.ts';
 import { fitViewport, layoutGraph, type FlowNodeData } from '../lib/layout.ts';
@@ -41,8 +41,11 @@ interface Props {
 
 export function Diagram({ nodes, edges, showSupporting, showDeps, expanded, onToggleExpand, flowMode, fitSignal, pageSize, embedded, costByNode, components, fresh, changes, deltas, ghostEdges, selected, onSelect }: Props) {
   const [layout, setLayout] = useState<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
-  // Bumped on every new layout; remounting ReactFlow re-runs its built-in fitView once nodes are measured.
+  // Bumped when a new stack is laid out; remounting ReactFlow re-runs its built-in fitView once nodes are measured.
+  // Toggles that only show or hide nodes (supporting resources, expanded chips) keep the user's zoom and position.
   const [version, setVersion] = useState(0);
+  const fittedStack = useRef<string | undefined>(undefined);
+  const stackKey = useMemo(() => nodes.map((n) => n.id).join('|') + '#' + edges.map((e) => e.id).join('|'), [nodes, edges]);
 
   // Supporting nodes revealed by expanding a resource's IAM / SG chips.
   const revealed = useMemo(() => {
@@ -64,7 +67,10 @@ export function Diagram({ nodes, edges, showSupporting, showDeps, expanded, onTo
     layoutGraph(visible, laidOutEdges).then((l) => {
       if (cancelled) return;
       setLayout(l);
-      setVersion((v) => v + 1);
+      if (fittedStack.current !== stackKey) {
+        fittedStack.current = stackKey;
+        setVersion((v) => v + 1);
+      }
     });
     return () => {
       cancelled = true;
