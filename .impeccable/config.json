@@ -1,0 +1,47 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-radius",
+        "value": "10px",
+        "createdAt": "2026-10-28T11:36:22.148Z",
+        "reason": "Incumbent scale step (chip strip, scroll thumb) now documented in DESIGN.md"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "4px",
+        "createdAt": "2026-10-28T11:36:22.161Z",
+        "reason": "Incumbent scale step (tight labels, sev pills) now documented in DESIGN.md"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "2px",
+        "createdAt": "2026-10-28T11:36:22.174Z",
+        "reason": "Slider track: deliberately thinner than the radius scale"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "16px",
+        "createdAt": "2026-10-28T11:36:22.186Z",
+        "reason": "iOS zoom guard on focused inputs; documented in DESIGN.md Layout"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "20px",
+        "createdAt": "2026-10-28T11:36:22.198Z",
+        "reason": "Mobile total at <=600px; documented in DESIGN.md Layout"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "web/src/styles.css"
+        ],
+        "createdAt": "2026-10-28T11:36:34.766Z",
+        "reason": "Documented Category-Stripe Rule (DESIGN.md Shapes): 4px left stripes carry resource identity, incl. the miniature sample in the diagram Key panel"
+      }
+    ]
+  }
+}

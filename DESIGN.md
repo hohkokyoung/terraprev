@@ -94,9 +94,11 @@ typography:
     lineHeight: 1.65
 rounded:
   xs: "3px"
+  tight: "4px"
   sm: "5px"
   md: "6px"
   lg: "8px"
+  strip: "10px"
   xl: "12px"
   pill: "24px"
 spacing:

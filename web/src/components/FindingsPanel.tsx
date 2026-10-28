@@ -51,7 +51,9 @@ export function FindingsPanel({ insights, nodesById, onSelect }: Props) {
 export function FindingRow({ f, nodesById, onSelect }: { f: Insight; nodesById?: Map<string, GraphNode>; onSelect?: (id: string) => void }) {
   return (
     <li className="frow">
-      <span className={`sev sev--${f.severity}`}>{f.severity === 'good' ? 'Strength' : SEVERITY_LABEL[f.severity]}</span>
+{f.severity === 'good'
+        ? <span className="sev sev--good" aria-label="Strength">✓</span>
+        : <span className={`sev sev--${f.severity}`}>{SEVERITY_LABEL[f.severity]}</span>}
       <div className="frow__body">
         <b className="frow__title">{f.title}</b>
         <p className="frow__detail">{f.detail}</p>

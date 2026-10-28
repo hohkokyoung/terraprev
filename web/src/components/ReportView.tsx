@@ -427,7 +427,9 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, diff, view, 
           {report.findings.items.map((i) => (
             <div key={i.id} className={`finding finding--${i.severity}`}>
               <div className="finding__head">
-                <span className={`sev sev--${i.severity}`}>{i.severity === 'good' ? 'Strength' : SEVERITY_LABEL[i.severity]}</span>
+                {i.severity === 'good'
+                  ? <span className="sev sev--good" aria-label="Strength">✓</span>
+                  : <span className={`sev sev--${i.severity}`}>{SEVERITY_LABEL[i.severity]}</span>}
                 <span className="finding__cat">{i.category}</span>
                 <b>{i.title}</b>
               </div>

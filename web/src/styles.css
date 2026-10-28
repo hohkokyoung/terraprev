@@ -27,6 +27,7 @@
   --ok: #277540;
   --warn: #985518;
   --bad: #c2382f;
+  --sev-high-ink: #fff;
   --fresh: #36b46b;
   --iam: #b04034;
   --code-bg: #f3f1ea;
@@ -80,6 +81,7 @@
     --warn: #c78a53;
     --ok: #5ba773;
     --bad: #d77c76;
+    --sev-high-ink: #121316;
     --iam: #d67e75;
     --sg: #9f8ad7;
     --cat-compute: #e07b2c;
@@ -121,6 +123,7 @@
     --warn: #c78a53;
     --ok: #5ba773;
     --bad: #d77c76;
+    --sev-high-ink: #121316;
     --iam: #d67e75;
     --sg: #9f8ad7;
     --cat-compute: #e07b2c;
@@ -678,7 +681,7 @@ button { font: inherit; color: inherit; }
 
 .sevcounts { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
 .sev { font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 5px; border-radius: 3px; white-space: nowrap; border: 1px solid currentColor; background: var(--panel); }
-.sev--high { color: #fff; background: var(--bad); border-color: var(--bad); }
+.sev--high { color: var(--sev-high-ink); background: var(--bad); border-color: var(--bad); }
 .sev--medium { color: var(--warn); }
 .sev--low { color: var(--ink-2); border-color: color-mix(in srgb, var(--warn) 60%, var(--line-2)); }
 .sev--info { color: var(--ink-2); border-color: var(--line-2); }
@@ -704,7 +707,7 @@ button { font: inherit; color: inherit; }
 .findings__strengths summary:hover { color: var(--ink); }
 .findings__strengths summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
 .findings__strengths[open] summary { margin-bottom: 4px; }
-.findings__strengths .frow { grid-template-columns: 4.75rem 1fr; }
+.findings__strengths .frow { grid-template-columns: 1.5rem 1fr; }
 .findings__strengths .frow:first-child { border-top: 0; }
 .tabs__flag { margin-left: 5px; padding: 1px 4px; vertical-align: 1px; }
 /* Stamp on a diagram node: worst open finding, plus how many more. Solid paper behind so the node edge doesn't show through. */
@@ -966,10 +969,10 @@ button { font: inherit; color: inherit; }
 .keypanel li > span:last-child { min-width: 0; }
 /* samples reuse the real classes so the key never goes stale */
 .keypanel .sample { display: inline-flex; align-items: center; gap: 6px; min-height: 20px; }
-.keypanel .rnode__tag { min-width: 24px; height: 17px; font-size: 9px; border-radius: 4px; }
-.keypanel .rnode__cost { font-size: x-small; padding: 0 5px; }
-.keypanel .chip { font-size: 8px; padding: 2px 4px; border-radius: 4px; }
+.keypanel .rnode__tag { min-width: 24px; height: 17px; font-size: var(--fs-2xs); border-radius: 4px; }
+.keypanel .rnode__cost { font-size: var(--fs-2xs); padding: 0 5px; }
+.keypanel .chip { font-size: var(--fs-2xs); padding: 2px 4px; border-radius: 4px; }
 .keypanel .kdash { width: 44px; height: 16px; border: 1.5px dashed var(--vpc); border-left-style: solid; border-left-width: 4px; border-left-color: var(--vpc); border-radius: 5px; background: color-mix(in srgb, var(--vpc) 4%, transparent); }
-.keypanel .sev { font-size: 8px; padding: 1px 5px; }
+.keypanel .sev { font-size: var(--fs-2xs); padding: 1px 5px; }
 .keypanel li.is-ghosted { grid-template-columns: 86px 1fr; }
 @media (max-width: 600px) { .keypanel { top: 46px; padding: 8px 10px 10px; } .keypanel li { grid-template-columns: 72px 1fr; gap: 6px; } }
