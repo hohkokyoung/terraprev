@@ -12,7 +12,7 @@ Point terraprev at a `terraform.tfstate` (or a plan, before you apply it) and yo
 
 It runs on your machine: no AWS account, no credentials, nothing uploaded. It also works with emulators such as LocalStack or floci, showing what the same stack would cost on real AWS.
 
-![terraprev in 15 seconds: the snapshot page with the diagram and monthly bill, a line-by-line cost breakdown, findings with fixes, and an AI assistant asking terraprev what drives the bill](docs/teaser.webp)
+![terraprev in 15 seconds: the snapshot page with the diagram and monthly bill, one resource's line-by-line cost breakdown, its findings with fixes, and an AI assistant pricing a change with terraprev's what_if tool before it is written](docs/teaser.webp)
 
 ▶ [Watch the launch video (24 s, 1080p, with sound)](https://github.com/user-attachments/assets/4c07746c-11fa-41d2-91a4-96ae6d989016)
 
@@ -196,4 +196,4 @@ npm run typecheck
 | What the live page's stack pickers list and read | `server/src/views.ts` |
 | Another cloud | implement `ProviderPricer` in `server/src/pricing/types.ts` |
 
-The videos are made with [Remotion](https://www.remotion.dev) from screenshots of a real snapshot, following the [/brag-slim](https://github.com/latent-spaces/brag) recipe: `npm run capture` (needs `out/terraprev.html`), then, in `video/`, `npm run teaser` (the loop at the top of this page, `docs/teaser.webp`) and `npm run render` (the launch video with its soundtrack, `video/out/brag.mp4`, plus its poster `brag.jpg`). The soundtrack is synthesised by `video/brag-audio.ts`, with no samples. Both videos take their timings from `video/src/brag-timeline.ts`, so picture and sound stay in sync. The earlier 40-second feature tour is still there: `npm run render:tour`. GitHub only plays video it hosts, so to update the video link, drag the MP4 into a GitHub issue or comment box and use the link it gives.
+The videos are made with [Remotion](https://www.remotion.dev) from screenshots of a real snapshot, following the [/brag-slim](https://github.com/latent-spaces/brag) recipe: `npm run capture` (needs `out/terraprev.html`; when the snapshot was built from a copy of the state, e.g. one with no `terraprev.usage.json` beside it so it prices at the defaults, set `CAPTURE_STATE` to that copy so its path is hidden too), then, in `video/`, `npm run teaser` (the loop at the top of this page, `docs/teaser.webp`) and `npm run render` (the launch video with its soundtrack, `video/out/brag.mp4`, plus its poster `brag.jpg`). The soundtrack is synthesised by `video/brag-audio.ts`, with no samples. Both videos take their timings from `video/src/brag-timeline.ts`, so picture and sound stay in sync. The earlier 40-second feature tour is still there: `npm run render:tour`. GitHub only plays video it hosts, so to update the video link, drag the MP4 into a GitHub issue or comment box and use the link it gives.

@@ -27,7 +27,8 @@ const chrome = [
 if (!chrome) throw new Error('Needs Chrome or Edge (or set CHROME_PATH)');
 
 const html = join(ROOT, 'out', 'terraprev.html');
-const STATE = join(ROOT, 'demo.tfstate');
+// The state the snapshot was built from (CAPTURE_STATE when it wasn't demo.tfstate): its path is swapped for a generic one.
+const STATE = process.env.CAPTURE_STATE ? resolve(process.env.CAPTURE_STATE) : join(ROOT, 'demo.tfstate');
 if (!existsSync(html)) throw new Error(`No ${html}: run \`npm run snapshot\` in the repo root first`);
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -57,7 +58,7 @@ await click(page, '.react-flow__controls-zoomout');
 
 const node = (label: string) => `xpath///div[contains(@class,"rnode")][.//span[@class="rnode__label" and text()="${label}"]]`;
 
-await shot('overview', { total: '.total', cost: '.side', canvas: '.canvas', db: node('app-db'), stackbar: '.stackbar', legend: '.legend', costrows: '.costrows' });
+await shot('overview', { total: '.total', cost: '.side', canvas: '.canvas', db: node('app-db'), internet: '.rnode--internet', alb: node('web-alb'), stackbar: '.stackbar', legend: '.legend', costrows: '.costrows' });
 
 // Close-up for the architecture beat: the app's own zoom renders the boxes larger and crisp, where
 // zooming the video into the overview would only magnify small text. Zoom steps are 1.2× about the
@@ -71,6 +72,13 @@ await click(page, '.react-flow__controls-zoomout');
 
 await click(page, node('app-db'));
 await shot('select', { db: node('app-db'), head: '.inspector__head', lines: '.lines' });
+
+// Selecting app-db scopes the panel to it: the same tabs, for that one resource.
+await click(page, '.tabs ::-p-text(Cost)');
+await shot('cost-one', { scope: '.scopebar', head: '.scopehead', lines: '.lines' });
+await click(page, '.tabs ::-p-text(Findings)');
+await shot('risks', { scope: '.scopebar', finding: '.frow' });
+await click(page, '.scopebar ::-p-text(Whole stack)');
 
 await click(page, '.tabs ::-p-text(Usage)');
 // A real drag of the first slider, one shot per step, so the video's knob and total move with the cursor.

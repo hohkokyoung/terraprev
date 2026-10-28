@@ -1,12 +1,12 @@
-// The 20-second launch video ("brag", made with the /brag-slim recipe) and its silent README loop.
+// The 25-second launch video ("brag", made with the /brag-slim recipe) and its silent README loop.
 // One window stays on stage the whole time: it starts as the terminal running `tf apply`, becomes
-// the browser showing the real snapshot page, then a terminal again for the MCP question.
+// the browser showing the real snapshot page, then your AI assistant pricing a change with what_if.
 // Every frame is a function of time; all timings live in brag-timeline.ts, shared with the soundtrack.
 
 import type { CSSProperties, ReactNode } from 'react';
 import { AbsoluteFill, Freeze, Html5Audio, interpolate, interpolateColors, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { at, ease, Shot, union } from './Shot.tsx';
-import { ASK, DOLLAR, FULL, HOOK, LOOP, MORPH, OUTRO, POSTER_AT, REVEAL, STRETCH, type SceneName, type Timeline } from './brag-timeline.ts';
+import { DOLLAR, FULL, HOOK, LOOP, MORPH, OUTRO, POSTER_AT, REVEAL, RISKS, STRETCH, WHATIF, type SceneName, type Timeline } from './brag-timeline.ts';
 
 export const BRAG_FPS = 30;
 export const BRAG_FRAMES = Math.round(FULL.duration * STRETCH * BRAG_FPS);
@@ -69,8 +69,8 @@ function Stage({ tl }: { tl: Timeline }) {
   const s = tl.scenes;
   const d0 = s.dollar![0];
   const r0 = s.risks![0];
-  const a0 = s.ask![0];
-  const a1 = s.ask![1];
+  const a0 = s.whatif![0];
+  const a1 = s.whatif![1];
   const from = (sec: number) => Math.round(sec * STRETCH * fps);
 
   // The window: from under the headline to the stage slot, and off at the outro.
@@ -82,7 +82,8 @@ function Stage({ tl }: { tl: Timeline }) {
   // Window body colour: terminal → page → terminal (→ page again, so the loop's last frame meets its first).
   const body = interpolateColors(
     t,
-    [tl.pageIn + 0.25, tl.pageIn + 0.3, a0 - 0.05, a0 + 0.1, a1 + 0.05, a1 + 0.35], // switch to page once the page covers it
+    // To the page once the page covers it; back to the terminal fast while the page fades, so the cut dips through dark, not grey.
+    [tl.pageIn + 0.25, tl.pageIn + 0.3, a0 - 0.13, a0 - 0.07, a1 + 0.05, a1 + 0.35],
     [s.hook ? C.term : C.page, C.page, C.page, C.term, C.term, s.outro ? C.term : C.page],
   );
   const loops = !s.outro;
@@ -117,12 +118,12 @@ function Stage({ tl }: { tl: Timeline }) {
 
           <Layer t={t} a={r0 + 0.05} b={a0}>
             <Sequence from={from(r0)} layout="none">
-              <Shot w={VIEW.w} h={VIEW.h} pace={PACE} images={[{ shot: 'findings', from: 0 }]} focus={[{ from: 0, rect: null }, { from: 10, rect: { x: 417, y: 140, w: 766, h: 282 }, zoom: 2 }]} />
+              <RisksShot />
             </Sequence>
           </Layer>
 
           <Layer t={t} a={a0 + 0.1} b={s.outro ? Infinity : a1}>
-            <AskTerminal t={t - a0} />
+            <WhatIfTerminal t={t - a0} />
           </Layer>
 
           {/* The loop's last moments: the overview fades back in, matching its first frame. */}
@@ -136,7 +137,7 @@ function Stage({ tl }: { tl: Timeline }) {
         </div>
       </div>
 
-      {(['reveal', 'dollar', 'risks', 'ask'] as const).map((name) => s[name] && (
+      {(['reveal', 'dollar', 'risks', 'whatif'] as const).map((name) => s[name] && (
         <Caption key={name} name={name} t={t} start={s[name]![0] + (name === 'reveal' && s.hook ? 0.6 : name === 'reveal' ? -0.5 : 0.15)} end={s[name]![1]} />
       ))}
       {loops && <Caption name="reveal" t={t} start={tl.duration - 0.5} end={Infinity} />}
@@ -174,8 +175,8 @@ function Headline({ t, end }: { t: number; end: number }) {
   const line: CSSProperties = { font: '700 92px/1.12 Inter', letterSpacing: '-0.035em', textAlign: 'center', whiteSpace: 'nowrap' };
   return (
     <div style={{ position: 'absolute', left: 0, right: 0, top: 235, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-      <div style={{ ...line, ...rise(t, 0.05, end + 0.25, 30) }}>You just applied 20 resources.</div>
-      <div style={{ ...line, color: C.accent, ...rise(t, HOOK.question, end + 0.25, 30) }}>What will they cost?</div>
+      <div style={{ ...line, ...rise(t, 0.05, end + 0.25, 30) }}>Your AWS bill,</div>
+      <div style={{ ...line, color: C.accent, ...rise(t, HOOK.question, end + 0.25, 30) }}>before AWS sends it.</div>
     </div>
   );
 }
@@ -217,7 +218,7 @@ const u = (sec: number) => sec * 30;
 
 /** The architecture: the whole page, then the traffic path as Data flow lights it up. */
 function RevealShot() {
-  const path = union({ x: 252, y: 668, w: 118, h: 30 }, at('flow', 'asg')); // Internet → web-alb → app-asg
+  const path = union(at('overview', 'internet'), at('flow', 'asg')); // Internet → web-alb → app-asg
   return (
     <Shot
       w={VIEW.w}
@@ -232,7 +233,7 @@ function RevealShot() {
   );
 }
 
-/** The bill: a click on app-db, its total under the page's total, then quantity × unit price. */
+/** The bill: a click on app-db scopes the panel to it (switch and total), then quantity × unit price. */
 function DollarShot() {
   const db = at('overview', 'db');
   return (
@@ -240,11 +241,11 @@ function DollarShot() {
       w={VIEW.w}
       h={VIEW.h}
       pace={PACE}
-      images={[{ shot: 'overview', from: 0 }, { shot: 'select', from: u(DOLLAR.click) }]}
+      images={[{ shot: 'overview', from: 0 }, { shot: 'cost-one', from: u(DOLLAR.click) }]}
       focus={[
         { from: 0, rect: { x: 400, y: 0, w: 1200, h: 700 }, zoom: 1.4 }, // the diagram and the panel, header included
-        { from: u(DOLLAR.toHead), rect: union(at('overview', 'total'), at('select', 'head')), zoom: 2.4 },
-        { from: u(DOLLAR.toLines), rect: { ...at('select', 'lines'), h: 190 }, zoom: 2.4 },
+        { from: u(DOLLAR.toHead), rect: union(at('cost-one', 'scope'), at('cost-one', 'head')), zoom: 2.4 },
+        { from: u(DOLLAR.toLines), rect: { ...at('cost-one', 'lines'), h: 200 }, zoom: 2.4 },
       ]}
       cursor={[
         { at: u(DOLLAR.cursorIn), x: 860, y: 470 },
@@ -254,44 +255,54 @@ function DollarShot() {
   );
 }
 
-/** Real numbers from the demo stack: what terraprev's estimate_cost tool returns for it. */
-const ROWS = [
-  { name: 'app-asg', usd: 58.42, note: '3 × t3.small' },
-  { name: 'web-alb', usd: 29.57, note: 'load balancer' },
-  { name: 'app-db', usd: 18.89, note: 'db.t3.micro' },
+/** app-db's findings, scoped to it: the panel, then the worst one and its fix. */
+function RisksShot() {
+  return (
+    <Shot
+      w={VIEW.w}
+      h={VIEW.h}
+      pace={PACE}
+      images={[{ shot: 'risks', from: 0 }]}
+      focus={[
+        { from: 0, rect: { x: 400, y: 0, w: 1200, h: 700 }, zoom: 1.4 },
+        { from: u(RISKS.toFinding), rect: union(at('risks', 'scope'), at('risks', 'finding')), zoom: 2.2 },
+      ]}
+    />
+  );
+}
+
+/** Real numbers from the demo stack: what terraprev's what_if tool returns for this change. */
+const RESULT = [
+  { label: 'app-db', value: <>$18.89 → <b style={{ color: C.text, fontWeight: 600 }}>$58.95</b>/mo</>, note: <span style={{ color: C.accent, fontWeight: 600 }}>+$40.06</span> },
+  { label: 'stack', value: <>$108.36 → <b style={{ color: C.text, fontWeight: 600 }}>$148.42</b>/mo</>, note: null },
+  { label: 'fixes', value: <span style={{ color: C.green }}>✓ app-db is single-AZ</span>, note: null },
 ];
 
-function AskTerminal({ t }: { t: number }) {
-  const n = Math.max(0, Math.floor((t - ASK.typeFrom) / ASK.perKey) + 1);
-  const typing = t >= ASK.typeFrom && n <= ASK.question.length;
+function WhatIfTerminal({ t }: { t: number }) {
+  const n = Math.max(0, Math.floor((t - WHATIF.typeFrom) / WHATIF.perKey) + 1);
+  const typing = t >= WHATIF.typeFrom && n <= WHATIF.question.length;
   return (
-    <div style={{ position: 'absolute', inset: 0, padding: '64px 64px', font: `400 31px/1.8 ${MONO}`, color: C.text }}>
+    <div style={{ position: 'absolute', inset: 0, padding: '60px 64px', font: `400 30px/1.8 ${MONO}`, color: C.text }}>
       <div>
         <span style={{ color: C.accent }}>{'> '}</span>
-        {t >= ASK.typeFrom ? ASK.question.slice(0, n) : ''}
-        {(typing || t < ASK.typeFrom) && <Caret t={t} />}
+        {t >= WHATIF.typeFrom ? WHATIF.question.slice(0, n) : ''}
+        {(typing || t < WHATIF.typeFrom) && <Caret t={t} />}
       </div>
-      <div style={{ height: 40 }} />
-      <Line t={t} at={ASK.tool} style={{ color: C.muted }}>
-        <span style={{ color: t >= ASK.answer ? C.green : C.accent }}>●</span> terraprev · estimate_cost
+      <div style={{ height: 34 }} />
+      <Line t={t} at={WHATIF.tool} style={{ color: C.muted }}>
+        <span style={{ color: t >= WHATIF.rows[0] ? C.green : C.accent }}>●</span> terraprev · what_if
       </Line>
-      <Line t={t} at={ASK.answer} style={{ marginTop: 10 }}>
-        Your stack runs <b style={{ color: C.accent, fontWeight: 600 }}>~$108.36/mo</b>. Biggest costs:
-      </Line>
-      <div style={{ marginTop: 22, lineHeight: 2 }}>
-        {ROWS.map((r, i) => {
-          const when = ASK.rows[i];
+      <Line t={t} at={WHATIF.args} style={{ color: C.dim, fontSize: 25 }}>{'  app-db: multi_az = true, instance_class = db.t4g.small'}</Line>
+      <div style={{ marginTop: 24, lineHeight: 1.95 }}>
+        {RESULT.map((r, i) => {
+          const when = WHATIF.rows[i];
           if (t < when) return null;
           const p = ramp(t, when, when + 0.14);
-          const bar = ramp(t, when + 0.05, when + 0.5);
           return (
-            <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 26, opacity: p, transform: `translateY(${(1 - p) * 8}px)` }}>
-              <span style={{ width: 170 }}>{r.name}</span>
-              <span style={{ width: 150, textAlign: 'right', fontWeight: 600 }}>${r.usd.toFixed(2)}</span>
-              <span style={{ width: 220, height: 14, borderRadius: 7, background: '#24262d', overflow: 'hidden' }}>
-                <span style={{ display: 'block', height: 14, width: `${(r.usd / ROWS[0].usd) * 100 * bar}%`, background: C.accent, borderRadius: 7 }} />
-              </span>
-              <span style={{ color: C.dim }}>{r.note}</span>
+            <div key={r.label} style={{ display: 'flex', alignItems: 'baseline', gap: 28, opacity: p, transform: `translateY(${(1 - p) * 8}px)` }}>
+              <span style={{ width: 140, color: C.dim }}>{r.label}</span>
+              <span style={{ color: C.muted }}>{r.value}</span>
+              {r.note}
             </div>
           );
         })}
@@ -301,10 +312,10 @@ function AskTerminal({ t }: { t: number }) {
 }
 
 const CAPTIONS: Record<Exclude<SceneName, 'hook' | 'outro'>, { kicker: string; title: string; body: string }> = {
-  reveal: { kicker: '', title: 'See your\narchitecture.', body: 'Drawn from state.\nEvery path in, traced.' },
+  reveal: { kicker: '', title: 'Your stack,\ndrawn from state.', body: 'Every resource.\nEvery path in.' },
   dollar: { kicker: 'COST', title: 'Every dollar, explained.', body: 'Quantity × unit price, from AWS’s price list.' },
   risks: { kicker: 'FINDINGS', title: 'Risks,\nwith the fix.', body: 'Checked on every apply.' },
-  ask: { kicker: 'MCP', title: 'Ask your AI.', body: 'Now an MCP server.' },
+  whatif: { kicker: 'MCP', title: 'Price it before\nyou write it.', body: 'Your AI asks terraprev.\nReal AWS prices.' },
 };
 
 function Caption({ name, t, start, end }: { name: keyof typeof CAPTIONS; t: number; start: number; end: number }) {
