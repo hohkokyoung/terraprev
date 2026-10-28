@@ -43,5 +43,12 @@
         "reason": "Documented Category-Stripe Rule (DESIGN.md Shapes): 4px left stripes carry resource identity, incl. the miniature sample in the diagram Key panel"
       }
     ]
+  },
+  "hook": {
+    "enabled": true,
+    "limits": {
+      "maxFindings": 5,
+      "maxChars": 8000
+    }
   }
 }
