@@ -64,18 +64,6 @@ export function inView(r: Rect, vp: Viewport, w: number, h: number) {
   return x1 >= INSET.left && y1 >= INSET.top && x1 + r.width * vp.zoom <= w - INSET.right && y1 + r.height * vp.zoom <= h - INSET.bottom;
 }
 
-/** Whether part of `r` is cut off by the canvas edges (a few pixels of slack). */
-export function cutOff(r: Rect, vp: Viewport, w: number, h: number) {
-  const x1 = r.x * vp.zoom + vp.x;
-  const y1 = r.y * vp.zoom + vp.y;
-  return x1 < -4 || y1 < -4 || x1 + r.width * vp.zoom > w + 4 || y1 + r.height * vp.zoom > h + 4;
-}
-
-/** The whole drawing, as large as fits (never above life size). */
-export function wholeViewport(graph: Rect, w: number, h: number): Viewport {
-  return centerOn(graph, Math.min(fitZoom(graph, w, h), MAX_START_ZOOM), w, h);
-}
-
 /** The view after selecting `r`: unchanged if it's already readable and on screen, else centered on it. */
 export function revealViewport(r: Rect, current: Viewport, graph: Rect, w: number, h: number): Viewport | undefined {
   if (current.zoom >= READABLE_ZOOM - 0.01 && inView(r, current, w, h)) return undefined;

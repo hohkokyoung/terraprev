@@ -10,26 +10,38 @@ import { SEVERITY_LABEL } from '../../../shared/report.ts';
 
 type FlowNode = Node<FlowNodeData>;
 
-const TAGS: Record<string, string> = { internet: '⇄' };
 const CHANGE_TAG = { added: '+', changed: '~', replaced: '±', removed: '−' } as const;
+
+// The type cell has one fixed width; longer codes get a short form there and keep the full name in the hint.
+const CELL_CODE: Record<string, string> = { DynamoDB: 'DDB', EventBridge: 'EVB', Cognito: 'COG', 'Step Fn': 'SFN', Secrets: 'SECR', Listener: 'LSNR' };
+function cellCode(code: string) {
+  if (code.length <= 6) return code;
+  if (CELL_CODE[code]) return CELL_CODE[code];
+  const words = code.split(/\s+/);
+  return words.length > 1 ? words.map((w) => w[0]).join('').toUpperCase() : code.slice(0, 4).toUpperCase();
+}
 
 export function ResourceNode({ data, selected }: NodeProps<FlowNode>) {
   const { node, monthly, hasUsage, fresh, expanded, revealed, traced, change, delta, findings, dataLoss } = data;
   const toggle = useContext(ExpandContext);
   const roles = node.access?.roles.length ?? 0;
   const sgs = node.access?.securityGroups.length ?? 0;
-  const tag = TAGS[node.type] ?? node.sublabel ?? '';
-  const hint = node.details[0]?.[1];
+  const internet = node.type === 'internet';
+  // The internet edge is an annotation, not a part: no type code.
+  const code = internet ? '' : node.sublabel ?? '';
+  const tag = cellCode(code);
+  const spec = node.details[0]?.[1];
+  const hint = tag !== code ? [code, spec].filter(Boolean).join(' · ') : spec;
   return (
     <div
-      className={['rnode', node.virtual && 'rnode--virtual', node.supporting && 'rnode--supporting', selected && 'is-selected', fresh && 'is-fresh', revealed && 'is-revealed', traced && `is-traced-${traced}`, change && `is-${change}`, dataLoss && 'is-dataloss', node.type === 'internet' && 'rnode--internet']
+      className={['rnode', node.virtual && 'rnode--virtual', node.supporting && 'rnode--supporting', selected && 'is-selected', fresh && 'is-fresh', revealed && 'is-revealed', traced && `is-traced-${traced}`, change && `is-${change}`, dataLoss && 'is-dataloss', internet && 'rnode--internet']
         .filter(Boolean)
         .join(' ')}
       style={{ ['--cat' as string]: categoryVar(node.category) }}
       title={awsName(node.type) ? `${awsName(node.type)!.full}\n${node.label}` : node.label}
     >
       <Handle type="target" position={Position.Left} className="handle" />
-      <span className="rnode__tag">{tag}</span>
+      {tag && <span className="rnode__tag">{tag}</span>}
       <span className="rnode__body">
         <span className="rnode__label" title={node.label}>{node.label}</span>
         {hint && <span className="rnode__hint">{hint}</span>}

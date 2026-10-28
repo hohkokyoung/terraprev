@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, watchFile, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Hono, type Context } from 'hono';
@@ -16,6 +16,8 @@ import { labelMap } from './source/labels.ts';
 import { inline, printReport, webTemplate } from './export.ts';
 import { readHistory, recordHistory } from './history.ts';
 import { buildView, listStackFiles, ViewError, type ViewRequest } from './views.ts';
+import { cleanUsage, readUsage, usagePath, writeUsage } from './usage.ts';
+import type { UsageFile } from '../../shared/types.ts';
 
 const config = loadConfig();
 
@@ -76,7 +78,32 @@ watchState(config.stateFile, onState, (err) => {
   broadcast('error', { message: lastError });
 });
 
+// Usage assumptions live in terraprev.usage.json, so the page, snapshot builds and the MCP server agree.
+// `origin` names the page that made a change, so it can ignore its own echo.
+let usageFile: UsageFile = readUsage(config.stateFile, log);
+const sendUsage = (origin?: string) => broadcast('usage', { ...usageFile, origin });
+watchFile(usagePath(config.stateFile), { interval: 1000 }, () => {
+  const next = readUsage(config.stateFile, log);
+  if (JSON.stringify(next) === JSON.stringify(usageFile)) return; // our own write
+  usageFile = next;
+  sendUsage();
+});
+
 const app = new Hono();
+
+app.get('/api/usage', (c) => c.json(usageFile));
+app.put('/api/usage', async (c) => {
+  const body = await c.req.json().catch(() => undefined);
+  if (!body || typeof body !== 'object') return c.json({ error: 'expected { usage, freeTier }' }, 400);
+  try {
+    usageFile = writeUsage(config.stateFile, cleanUsage(body));
+  } catch (err) {
+    log(`usage: ${(err as Error).message}`);
+    return c.json({ error: `Could not save ${usagePath(config.stateFile)}: ${(err as Error).message}` }, 500);
+  }
+  sendUsage(c.req.header('x-terraprev-client'));
+  return c.json(usageFile);
+});
 
 app.get('/api/snapshot', (c) => (snapshot ? c.json(snapshot) : c.json({ error: lastError ?? 'No state yet', stateFile: config.stateFile }, 503)));
 
@@ -140,6 +167,7 @@ app.get('/api/events', (c) =>
   streamSSE(c, async (stream) => {
     const send: Listener = (event, data) => void stream.writeSSE({ event, data: JSON.stringify(data) });
     listeners.add(send);
+    send('usage', usageFile);
     if (snapshot) send('snapshot', snapshot);
     else if (lastError) send('error', { message: lastError });
     const ping = setInterval(() => void stream.writeSSE({ event: 'ping', data: '' }), 20_000);

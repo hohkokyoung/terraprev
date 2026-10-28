@@ -280,13 +280,25 @@ export interface SourceResult {
 }
 
 /** Everything a static snapshot page needs, embedded by `terraprev build`. */
+/**
+ * terraprev.usage.json, next to the state: the usage assumptions every number is priced at. The live
+ * page, snapshot builds and the MCP server all read it, so they agree, and it can be reviewed in git.
+ */
+export interface UsageFile {
+  /** `${address}:${param}` → value, only where it differs from the default. */
+  usage: Record<string, number>;
+  freeTier: boolean;
+}
+
 export interface StaticBundle {
   snapshot: Snapshot;
   /** address → its source blocks, or null when not found in any .tf file. */
   sources: Record<string, SourceResult | null>;
   generatedAt: string;
-  /** Slider values to use instead of the viewer's saved ones (the server-rendered report PDF). */
+  /** Slider values to use instead of the viewer's saved ones (the server-rendered report PDF, or terraprev.usage.json at build time). */
   usage?: Record<string, number>;
+  /** Free tier on, from terraprev.usage.json at build time. */
+  freeTier?: boolean;
   /** Plan preview or stack comparison: `snapshot` is the "after" side, this holds the "before". */
   compare?: Comparison;
 }

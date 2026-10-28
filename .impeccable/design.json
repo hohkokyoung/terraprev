@@ -307,7 +307,7 @@
           "#e9bda1",
           "#ffeadd"
         ],
-        "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
+        "purpose": "Tint and code color of the node type cell, legend dot, cost bar. Identifies; never fills wider surfaces or runs down an edge."
       },
       "cat-database": {
         "role": "category",
@@ -323,7 +323,7 @@
           "#a8c8ff",
           "#e0efff"
         ],
-        "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
+        "purpose": "Tint and code color of the node type cell, legend dot, cost bar. Identifies; never fills wider surfaces or runs down an edge."
       },
       "cat-storage": {
         "role": "category",
@@ -339,7 +339,7 @@
           "#aed2b4",
           "#e3f4e6"
         ],
-        "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
+        "purpose": "Tint and code color of the node type cell, legend dot, cost bar. Identifies; never fills wider surfaces or runs down an edge."
       },
       "cat-network": {
         "role": "category",
@@ -355,7 +355,7 @@
           "#c9bef8",
           "#efeaff"
         ],
-        "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
+        "purpose": "Tint and code color of the node type cell, legend dot, cost bar. Identifies; never fills wider surfaces or runs down an edge."
       },
       "cat-integration": {
         "role": "category",
@@ -371,7 +371,7 @@
           "#f9afc3",
           "#ffe4ec"
         ],
-        "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
+        "purpose": "Tint and code color of the node type cell, legend dot, cost bar. Identifies; never fills wider surfaces or runs down an edge."
       },
       "cat-api": {
         "role": "category",
@@ -387,7 +387,7 @@
           "#a6d0d6",
           "#e0f3f5"
         ],
-        "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
+        "purpose": "Tint and code color of the node type cell, legend dot, cost bar. Identifies; never fills wider surfaces or runs down an edge."
       },
       "cat-security": {
         "role": "category",
@@ -403,7 +403,7 @@
           "#f8b4a9",
           "#ffe6e0"
         ],
-        "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
+        "purpose": "Tint and code color of the node type cell, legend dot, cost bar. Identifies; never fills wider surfaces or runs down an edge."
       },
       "cat-monitoring": {
         "role": "category",
@@ -419,7 +419,7 @@
           "#d8c59e",
           "#f7eedc"
         ],
-        "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
+        "purpose": "Tint and code color of the node type cell, legend dot, cost bar. Identifies; never fills wider surfaces or runs down an edge."
       },
       "cat-other": {
         "role": "category",
@@ -435,7 +435,7 @@
           "#c6c7cb",
           "#eeeef0"
         ],
-        "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
+        "purpose": "Tint and code color of the node type cell, legend dot, cost bar. Identifies; never fills wider surfaces or runs down an edge."
       },
       "t-com": {
         "role": "syntax",
@@ -665,9 +665,9 @@
       "name": "Resource node",
       "kind": "card",
       "refersTo": "card-panel",
-      "description": "Signature diagram unit: flat 1px paper outline (3px radius, no shadow), a type code outlined in the category hue, label + mono hint, right-aligned tabular cost.",
-      "html": "<div class=\"ds-node\"><span class=\"ds-node__tag\">EC2</span><span class=\"ds-node__body\"><span class=\"ds-node__label\">api-prod</span><span class=\"ds-node__hint\">t3.micro &#183; eu-west-1a</span></span><span class=\"ds-node__cost\"><i>$</i>7.62</span></div>",
-      "css": ".ds-node{--ds-cat:var(--cat-compute,#e07b2c);width:100%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:8px 10px 8px 8px;background:var(--panel,#fffefb);color:var(--ink,#1c1d20);border:1px solid var(--line-2,#cfcbbf);border-radius:3px;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;transition:border-color .2s}.ds-node:hover{border-color:var(--ink-2,#4a4c52)}.ds-node__tag{min-width:34px;height:24px;padding:0 5px;border-radius:3px;display:grid;place-items:center;border:1px solid var(--ds-cat);color:var(--ink,#1c1d20);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:10px;font-weight:600;letter-spacing:.02em;white-space:nowrap}.ds-node__body{display:grid;min-width:0;line-height:1.25}.ds-node__label{font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ds-node__hint{font:10px/1.4 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;color:var(--ink-3,#85878d);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ds-node__cost{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}.ds-node__cost i{font-style:normal;color:var(--ink-3,#85878d);margin-right:1px}"
+      "description": "Signature diagram unit: flat 1px paper outline (3px radius, no shadow). A full-height type cell at the left (14% category tint, hairline divider, code in the hue), label + mono hint, right-aligned tabular cost.",
+      "html": "<div class=\"ds-node\"><span class=\"ds-node__tag\">EC2</span><span class=\"ds-node__body\"><span class=\"ds-node__label\">api-prod</span><span class=\"ds-node__hint\">t3.micro</span></span><span class=\"ds-node__cost\"><i>~</i>$7.62</span></div>",
+      "css": ".ds-node{--ds-cat:var(--cat-compute,#9b551e);width:100%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:0 10px 0 0;background:var(--panel,#fffefb);color:var(--ink,#1c1d20);border:1px solid var(--line-2,#cfcbbf);border-radius:3px;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;transition:border-color .2s}.ds-node:hover{border-color:var(--ink-2,#4a4c52)}.ds-node__tag{align-self:stretch;min-width:46px;padding:0 6px;border-radius:2px 0 0 2px;display:grid;place-items:center;background:color-mix(in srgb,var(--ds-cat) 14%,var(--panel,#fffefb));border-right:1px solid color-mix(in srgb,var(--ds-cat) 40%,var(--line-2,#cfcbbf));color:var(--ds-cat);font-size:11px;font-weight:700;letter-spacing:.02em;white-space:nowrap}.ds-node__body{display:grid;min-width:0;padding:8px 0;line-height:1.25}.ds-node__label{font-weight:600;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ds-node__hint{font:10px/1.4 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;color:var(--ink-3,#6c6d72);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ds-node__cost{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}.ds-node__cost i{font-style:normal;color:var(--ink-3,#6c6d72);margin-right:1px}"
     },
     {
       "name": "Quiet button",
@@ -735,8 +735,8 @@
       "name": "Diagram key",
       "kind": "custom",
       "description": "Canvas legend listing the diagram encodings with samples drawn from the real components, so the key can never drift from the nodes.",
-      "html": "<div class=\"ds-keylist\" role=\"list\" aria-label=\"How to read the diagram\"><ul><li role=\"listitem\"><span class=\"ds-keylist__sample\"><span class=\"ds-keylist__stripe\"></span></span><span>4px stripe and tinted tag: the resource's AWS category, reused in the cost rows and legend.</span></li><li role=\"listitem\"><span class=\"ds-keylist__sample\"><span class=\"ds-btn\" style=\"border-radius:4px;padding:0 5px;font-size:10px\">~$1.23</span></span><span>~ before a figure: usage-based estimate, adjustable with the sliders in Cost.</span></li><li role=\"listitem\"><span class=\"ds-keylist__sample\"><span class=\"ds-chip ds-chip--iam\">IAM</span><span class=\"ds-chip ds-chip--sg\">SG</span></span><span>IAM / SG chips: access attached to the node; click to expand the policies.</span></li><li role=\"listitem\"><span class=\"ds-keylist__sample\"><span class=\"ds-keylist__stripe\" style=\"border-left-style:solid\"></span></span><span>Dashed contour: a virtual boundary such as a router or the internet edge, not a deployed resource.</span></li><li role=\"listitem\"><span class=\"ds-keylist__sample\"><span class=\"ds-chg ds-chg--added\">+ added</span></span><span>In a plan or comparison: pills mark what changes; a dashed contour means the resource only exists on the other side.</span></li></ul></div>",
-      "css": ".ds-keylist{display:grid;gap:7px;font:12px/1.5 Inter,ui-sans-serif,system-ui;color:var(--ink-2,#4a4c52);background:var(--panel,#fffefb);border:1px solid var(--line,#e2dfd6);border-radius:8px;box-shadow:0 1px 2px rgb(30 25 10/.06),0 2px 8px rgb(30 25 10/.05);padding:10px 14px 12px;max-width:430px}.ds-keylist ul{margin:0;padding:0;list-style:none;display:grid;gap:7px}.ds-keylist li{display:grid;grid-template-columns:86px 1fr;gap:10px;align-items:center}.ds-keylist__sample{display:inline-flex;align-items:center;gap:6px;min-height:20px}.ds-keylist__stripe{width:44px;height:16px;border:1px solid var(--line-2,#cfcbbf);border-left:4px solid var(--cat-storage,#2f7342);border-radius:5px;background:var(--panel,#fffefb)}"
+      "html": "<div class=\"ds-keylist\" role=\"list\" aria-label=\"How to read the diagram\"><ul><li role=\"listitem\"><span class=\"ds-keylist__sample\"><span class=\"ds-keylist__cell\">RDS</span></span><span>Tinted type cell: the resource's AWS category, reused in the cost rows and legend.</span></li><li role=\"listitem\"><span class=\"ds-keylist__sample\"><span class=\"ds-btn\" style=\"border-radius:4px;padding:0 5px;font-size:10px\">~$1.23</span></span><span>~ before a figure: usage-based estimate, adjustable with the sliders in Cost.</span></li><li role=\"listitem\"><span class=\"ds-keylist__sample\"><span class=\"ds-chip ds-chip--iam\">IAM</span><span class=\"ds-chip ds-chip--sg\">SG</span></span><span>IAM / SG chips: access attached to the node; click to expand the policies.</span></li><li role=\"listitem\"><span class=\"ds-keylist__sample\"><span class=\"ds-keylist__stripe\" style=\"border-left-style:solid\"></span></span><span>Dashed contour: something virtual, such as a router or an instance an Auto Scaling group launched, not a resource in state.</span></li><li role=\"listitem\"><span class=\"ds-keylist__sample\"><span class=\"ds-chg ds-chg--added\">+ added</span></span><span>In a plan or comparison: pills mark what changes; a dashed contour means the resource only exists on the other side.</span></li></ul></div>",
+      "css": ".ds-keylist{display:grid;gap:7px;font:12px/1.5 Inter,ui-sans-serif,system-ui;color:var(--ink-2,#4a4c52);background:var(--panel,#fffefb);border:1px solid var(--line,#e2dfd6);border-radius:8px;box-shadow:0 1px 2px rgb(30 25 10/.06),0 2px 8px rgb(30 25 10/.05);padding:10px 14px 12px;max-width:430px}.ds-keylist ul{margin:0;padding:0;list-style:none;display:grid;gap:7px}.ds-keylist li{display:grid;grid-template-columns:86px 1fr;gap:10px;align-items:center}.ds-keylist__sample{display:inline-flex;align-items:center;gap:6px;min-height:20px}.ds-keylist__stripe{width:44px;height:16px;border:1px dashed var(--line-2,#cfcbbf);border-radius:3px;background:var(--panel,#fffefb)}.ds-keylist__cell{display:grid;place-items:center;min-width:40px;height:20px;border:1px solid color-mix(in srgb,var(--cat-database,#3262c7) 40%,var(--line-2,#cfcbbf));border-radius:3px;background:color-mix(in srgb,var(--cat-database,#3262c7) 14%,var(--panel,#fffefb));color:var(--cat-database,#3262c7);font-size:11px;font-weight:700}"
     }
   ],
   "narrative": {
@@ -764,7 +764,7 @@
       {
         "name": "The Stamped-ID Rule",
         "section": "colors",
-        "body": "Category and overlay hues are small stamps -- the outline of a type code, a dot, a bar, colored tag text. They identify; they never decorate, fill panels, or run down a card edge."
+        "body": "Category and overlay hues are small stamps -- a node's type cell, a dot, a bar, colored tag text. They identify; they never decorate, fill panels, or run down a card edge."
       },
       {
         "name": "The Tabular-Figure Rule",
@@ -802,9 +802,9 @@
         "body": "Exactly one shadow vocabulary exists, and it belongs to dropdown menus. Toolbars, canvas controls and drawn elements stay flat with a 1px contour."
       },
       {
-        "name": "The Category-Outline Rule",
+        "name": "The Type-Cell Rule",
         "section": "shapes",
-        "body": "Every diagram resource identifies its category by the 1px outline of its type code (EC2, ALB), matching the cost bar and legend dot in the same hue. No side stripes: a thick colored edge on a rounded card is the generic dashboard tell, and it breaks at the corners."
+        "body": "Every diagram resource identifies its category by a full-height cell at its left edge, split off by a hairline: a 14% tint of the category hue with the type code (EC2, ALB) in the hue itself, matching the cost bar and legend dot. The cell is part of the node's own frame. No floating outlined badge in front of the name (the boxed icon tile is the generic generated-UI tell), and no side stripes."
       },
       {
         "name": "The Dashed-Means-Virtual Rule",
@@ -815,7 +815,7 @@
     "dos": [
       "Do keep every number in tabular figures, right-aligned where columns meet, with the quantity x price x source one mono line below (font-size 10-11px).",
       "Do state the unknown: \"not priced\" as text in muted ink, never a bold $0.00, never blank.",
-      "Do use the category-outlined type code as the identity kit for any new resource kind before inventing any new color.",
+      "Do use the category-tinted type cell as the identity kit for any new resource kind before inventing any new color.",
       "Do draw all structure with 1px hairlines; keep shadows to dropdown menus; strip shadows from print output.",
       "Do keep dark mode a re-papering of the same drawing -- identical structure, hue, spacing (only papers/shadows vary).",
       "Do respect prefers-reduced-motion: pause dash animations and pulses, keep state changes readable through color and shape."
@@ -826,7 +826,7 @@
       "Don't rely on color alone for added/changed/removed or severity -- words or border style always accompany it, and comparisons show gaps without red/green verdicts.",
       "Don't scale elevation or motion as decoration; shadows don't grow on hover, and idle screens don't animate.",
       "Don't break the 10-28px type scale or set prose/labels in mono; ad-hoc sizes and 'code-chic' text are off-system.",
-      "Don't let category hues become surfaces; they identify (outline/dot/bar/tag text), they don't fill."
+      "Don't let category hues become surfaces beyond the type cell; they identify (type cell/dot/bar/tag text), they don't fill."
     ]
   }
 }

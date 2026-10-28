@@ -1,10 +1,15 @@
-import { useCallback, useMemo, useState } from 'react';
-import type { CostReport } from '../../../shared/types.ts';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CostReport, UsageFile } from '../../../shared/types.ts';
 import { lineCosts } from '../../../shared/cost.ts';
 import { STATIC } from './staticData.ts';
 
+// Before terraprev.usage.json, slider values lived only in this browser. The live page adopts them
+// once into the file; a snapshot file still keeps a viewer's own edits here.
 const STORAGE_KEY = 'terraprev.usage.v1';
 const FREE_KEY = 'terraprev.freeTier';
+
+/** Names this page in its writes, so it can ignore the server echoing them back. */
+const CLIENT = Math.random().toString(36).slice(2);
 
 function readStored(): Record<string, number> {
   try {
@@ -14,25 +19,76 @@ function readStored(): Record<string, number> {
   }
 }
 
-/** Slider values, keyed by `${address}:${param}` so they survive re-applies. */
-export function useUsage(cost: CostReport | undefined, forceFreeTier = false) {
-  const [overrides, setOverrides] = useState<Record<string, number>>(() => STATIC?.usage ?? readStored());
-  const [freeTier, setFreeTierState] = useState<boolean>(() => {
-    if (forceFreeTier) return true;
-    try {
-      return localStorage.getItem(FREE_KEY) === '1';
-    } catch {
-      return false;
+function storedFreeTier() {
+  try {
+    return localStorage.getItem(FREE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Slider values, keyed by `${address}:${param}` so they survive re-applies. Live, they are the server's
+ * terraprev.usage.json (shared with snapshot builds and the MCP server); in a snapshot file, the
+ * values it was built with, plus the viewer's own edits.
+ */
+export function useUsage(cost: CostReport | undefined, forceFreeTier = false, remote?: UsageFile & { origin?: string }) {
+  const [overrides, setOverrides] = useState<Record<string, number>>(() => (STATIC ? STATIC.usage ?? readStored() : {}));
+  const [freeTier, setFreeTierState] = useState<boolean>(() => forceFreeTier || (STATIC ? STATIC.freeTier ?? storedFreeTier() : false));
+  const latest = useRef({ usage: overrides, freeTier });
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const adopted = useRef(false);
+
+  const save = useCallback((next: { usage: Record<string, number>; freeTier: boolean }) => {
+    latest.current = next;
+    if (STATIC) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next.usage));
+        localStorage.setItem(FREE_KEY, next.freeTier ? '1' : '0');
+      } catch {
+        /* private mode: keep in memory only */
+      }
+      return;
     }
-  });
-  const setFreeTier = useCallback((on: boolean) => {
-    setFreeTierState(on);
+    // One write per pause, not one per slider step.
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      void fetch('/api/usage', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-Terraprev-Client': CLIENT },
+        body: JSON.stringify(latest.current),
+      }).catch(() => {});
+    }, 300);
+  }, []);
+
+  // The server's file is the truth: take changes made elsewhere (another tab, an assistant, an edit).
+  useEffect(() => {
+    if (STATIC || !remote || remote.origin === CLIENT) return;
+    const saved = readStored();
+    if (!adopted.current && !Object.keys(remote.usage).length && !remote.freeTier && (Object.keys(saved).length || storedFreeTier())) {
+      adopted.current = true;
+      const next = { usage: saved, freeTier: storedFreeTier() };
+      setOverrides(next.usage);
+      setFreeTierState(forceFreeTier || next.freeTier);
+      save(next);
+    } else {
+      adopted.current = true;
+      latest.current = { usage: remote.usage, freeTier: remote.freeTier };
+      setOverrides(remote.usage);
+      setFreeTierState(forceFreeTier || remote.freeTier);
+    }
     try {
-      localStorage.setItem(FREE_KEY, on ? '1' : '0');
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(FREE_KEY);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [remote, forceFreeTier, save]);
+
+  const setFreeTier = useCallback((on: boolean) => {
+    setFreeTierState(on);
+    save({ ...latest.current, freeTier: on });
+  }, [save]);
 
   const values = useMemo(() => {
     const v: Record<string, number> = {};
@@ -41,16 +97,10 @@ export function useUsage(cost: CostReport | undefined, forceFreeTier = false) {
   }, [cost, overrides]);
 
   const update = useCallback((fn: (cur: Record<string, number>) => Record<string, number>) => {
-    setOverrides((cur) => {
-      const next = fn(cur);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        /* private mode: keep in memory only */
-      }
-      return next;
-    });
-  }, []);
+    const next = fn(latest.current.usage);
+    setOverrides(next);
+    save({ ...latest.current, usage: next });
+  }, [save]);
 
   const set = useCallback(
     (key: string, value: number | undefined) =>

@@ -29,7 +29,7 @@ It runs on your machine: no AWS account, no credentials, nothing uploaded. It al
 
 - **Monthly estimate** from the AWS Price List API, on-demand prices for your region.
 - **Every dollar explained.** Each line shows quantity × unit price, linked to the SKU and the price file behind it.
-- **Usage sliders** for traffic-based charges (Lambda invocations, S3 storage, NAT data…); the total follows. Optional AWS Always Free tier.
+- **Usage sliders** for traffic-based charges (Lambda invocations, S3 storage, NAT data…); the total follows. Optional AWS Always Free tier. Saved in `terraprev.usage.json` next to the state, so snapshots and the MCP server price at the same assumptions, and they can be reviewed in git.
 - **Nothing hidden.** Anything terraprev can't price is listed as *not priced*, never counted as $0.
 - **Ways to save.** Priced suggestions that remove nothing: Graviton instance types, gp3 volumes, 1-year reservations for always-on instances, arm64 Lambdas, idle IPs, log retention, free S3/DynamoDB gateway endpoints. Each comes with the Terraform change and what it takes.
 - **Cost over time.** Every apply adds a point, so you see what the last change did to the bill (*+18% since 16 Sep, mostly Database*).
@@ -113,7 +113,10 @@ Other clients (Claude Desktop, Cursor…) take the same command in their JSON co
 | Tool | Returns |
 |---|---|
 | `stack_overview` | Summary, monthly total, top cost lines, finding counts, every resource |
-| `estimate_cost` | Every cost line (quantity × unit price, SKU, price page), usage assumptions, unpriced resources. Takes `usage` overrides and `free_tier` |
+| `find_resources` | Resources matching filters: kind, VPC or subnet, monthly cost range, reachable from the internet, finding severity, usage-based |
+| `estimate_cost` | Every cost line (quantity × unit price, SKU, price page), usage assumptions (and whether each is saved or the default), unpriced resources. Takes `usage` overrides and `free_tier` for one call |
+| `set_usage` | Saves usage assumptions and the free tier switch to `terraprev.usage.json`; the live page follows within a second |
+| `what_if` | Prices a change before it is written: attributes set (`instance_class`, `multi_az`, `desired_capacity`…) or resources removed. Cost before and after per resource, findings added or fixed |
 | `list_findings` | Findings with what was seen and how to fix it, optionally by severity |
 | `describe_resource` | One resource: configuration, location, connections, paths that reach it, IAM and security groups, cost, findings, its `.tf` block |
 | `get_brief` | The CTO brief as Markdown |
@@ -123,7 +126,9 @@ Other clients (Claude Desktop, Cursor…) take the same command in their JSON co
 | `compare_stacks` | This stack against another state file: what only one has, what differs, what each costs |
 | `build_snapshot` | Writes the HTML snapshot, and optionally the PDFs and brief |
 
-The tools return what the page shows: sensitive values never appear in them.
+Every tool prices at the saved usage assumptions (`terraprev.usage.json`, the same file the page's sliders write), else the defaults. The tools return what the page shows: sensitive values never appear in them.
+
+Prompts, shown as slash commands in clients that support them: `review_plan` (cost, risk and a PR comment for a plan), `explain_bill`, `cost_change` (why the bill moved), `harden_stack` (high and medium findings with fixes) and `price_change` (price a change in plain words with `what_if`).
 
 ## Options
 
@@ -150,7 +155,7 @@ Defaults live in `terraprev.config.json`: `stateFile`, `defaultRegion`, `port`, 
 
 ## How it works
 
-**Costs.** Always-on charges (instance hours, NAT, ALB, public IPv4, RDS storage…) come from state × 730 hours. Usage charges come from the sliders. Free resources (IAM, subnets, security groups…) are listed at $0. Prices are USD on-demand. Savings plans, reserved capacity, taxes and data transfer out are not included.
+**Costs.** Always-on charges (instance hours, NAT, ALB, public IPv4, RDS storage…) come from state × 730 hours. Usage charges come from the sliders, saved in `terraprev.usage.json` next to the state (one file per folder, so stacks side by side share it; delete it to go back to the defaults). Free resources (IAM, subnets, security groups…) are listed at $0. Prices are USD on-demand. Savings plans, reserved capacity, taxes and data transfer out are not included.
 
 **Plan previews.** The plan's prior state and planned values go through the same diagram, pricing and findings as a state file, and the two are compared. New resources have no ids yet, so terraprev follows the references in the plan's configuration to draw their connections (a new NAT gateway and its new Elastic IP, an instance and its new security group), through module outputs and inputs too. A new instance's public IPv4 is priced from its subnet's `map_public_ip_on_launch`. Other cost-relevant values Terraform only knows after apply can't be priced; those resources are marked ⚠. The plan reader is tested against real `terraform show -json` output (`server/test/real-plan/`).
 

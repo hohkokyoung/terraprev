@@ -176,7 +176,7 @@ Used as small outlined tags next to words, never as the only signal (WCAG 2.2 AA
 - **Apply Green** (`#36b46b`): the transient just-applied pulse in the diagram and banner; deliberately brighter than Check Green and used only for the moment after apply.
 
 ### Category hues
-Nine fixed hues, one per AWS resource category, used as the 1px outline around a node's type code, a legend dot or a cost bar — never as a surface fill or a side stripe: **Computer Amber** (`#9b551e`), **Database Blue** (`#3262c7`), **Storage Leaf** (`#2f7342`), **Network Violet** (`#7055b7`), **Integration Rose** (`#b13764`), **API Teal** (`#13707a`), **Security Rust** (`#b04034`), **Monitoring Brass** (`#83620b`), **Unclassified Grey** (`#65676e`). Network Violet doubles as the VPC boundary stroke and dotted route-line color.
+Nine fixed hues, one per AWS resource category, used as a node's type cell (a 14% tint with the code in the hue), a legend dot or a cost bar — never as a wider surface fill or a side stripe: **Computer Amber** (`#9b551e`), **Database Blue** (`#3262c7`), **Storage Leaf** (`#2f7342`), **Network Violet** (`#7055b7`), **Integration Rose** (`#b13764`), **API Teal** (`#13707a`), **Security Rust** (`#b04034`), **Monitoring Brass** (`#83620b`), **Unclassified Grey** (`#65676e`). Network Violet doubles as the VPC boundary stroke and dotted route-line color.
 
 ### Overlay hues
 - **IAM Rust** (`#b04034`) and **Security Violet** (`#7055b7`): the IAM / security-group chips clipped to node bottom edges; Security Violet reuses Network Violet so firewalls read as network-domain objects.
@@ -198,7 +198,7 @@ HCL blocks get their own fixed six-color assignment (Comment `#8a8c92`, String `
 ### Named Rules (optional, powerful)
 **The One Voice Rule.** Printing Blue is the only accent. It points: selection, links, active state, live attention. It never tints a surface wider than a banner, and no second accent exists.
 **The Labeled-Color Rule.** A color never carries meaning alone. Status and change states always ride with words (pills, keys, captions); the hue is a second reading of the same text.
-**The Stamped-ID Rule.** Category and overlay hues are small stamps — the outline of a type code, a dot, a bar, colored tag text. They identify; they never decorate, fill panels, or run down a card's edge.
+**The Stamped-ID Rule.** Category and overlay hues are small stamps — a node's type cell, a dot, a bar, colored tag text. They identify; they never decorate, fill panels, or run down a card's edge.
 
 ## Typography
 
@@ -259,18 +259,18 @@ The system is flat by default and layered by tone. Depth reads as three paper st
 
 ## Shapes
 
-The form language is drafting-simple: small radii, drawn contours, one crop geography. Radii run on a 3–8px scale — 3px for every drawn diagram element (resource nodes, type codes, IAM/SG strips, finding and change tags, subnets), 4px for VPC and cloud boundaries, 5px for sub-controls, 6px as the default for buttons/inputs/toolbars, 8px for panels and dropdowns, and a true pill (24px+) only for a few special silhouettes: the "internet" cloud and the scroll thumb.
+The form language is drafting-simple: small radii, drawn contours, one crop geography. Radii run on a 3–8px scale — 3px for every drawn diagram element (resource nodes, type codes, IAM/SG strips, finding and change tags, subnets), 4px for VPC and cloud boundaries, 5px for sub-controls, 6px as the default for buttons/inputs/toolbars, 8px for panels and dropdowns, and a true pill (24px+) only for the scroll thumb.
 
-Borders are functional annotations: resource nodes carry one even 1px contour, and their category hue appears only as the outline of the type code inside — the drawing's piece stamp — while virtual/dashed borders consistently mean "not a real resource" (router groups, launched instances, removed or replaced nodes in plan mode). Boundaries (cloud, VPC, subnet) are lines only, never tinted fills; public and private subnets differ by line color and label. Dots, tabs and controls are circles or simple rectangles; there is no asymmetric corner logic and no clipping beyond `overflow: hidden` on the diagram.
+Borders are functional annotations: resource nodes carry one even 1px contour, and their category hue appears only in the type cell at the left — the title block of the part — while virtual/dashed borders consistently mean "not a real resource" (router groups, launched instances, removed or replaced nodes in plan mode). Boundaries (cloud, VPC, subnet) are lines only, never tinted fills; public and private subnets differ by line color and label. Dots, tabs and controls are circles or simple rectangles; there is no asymmetric corner logic and no clipping beyond `overflow: hidden` on the diagram.
 
 ### Named Rules (optional)
-**The Category-Outline Rule.** Every diagram resource identifies its category by the 1px outline of its type code (`EC2`, `ALB`), matching the cost bar and legend dot in the same hue. No side stripes: a thick colored edge on a rounded card is the generic dashboard tell, and it breaks at the corners.
+**The Type-Cell Rule.** Every diagram resource identifies its category by a full-height cell at its left edge, split off by a hairline: a 14% tint of the category hue with the type code (`EC2`, `ALB`) in the hue itself, matching the cost bar and legend dot. The cell is part of the node's own frame. No floating outlined badge in front of the name (the boxed icon tile is the generic generated-UI tell), and no side stripes (a thick colored edge on a rounded card is the generic dashboard tell, and it breaks at the corners).
 **The Dashed-Means-Virtual Rule.** A dashed contour always means "not solid": virtual (router) nodes, removed/replaced resources, or a live-attention frame. It never means decorative variety.
 
 ## Components
 
 ### Resource node (signature)
-The one component that defines the system: a flat Tracing Panel outline, 1px Umber contour, 3px radius, no shadow, 8–10px padding. Inside: a 24×34px type code (mono 10px/600 ink, 1px outline in the category hue), an Inter 12px/600 label with mono 10px hint below, and a right-aligned tabular cost figure with no chip behind it. IAM/SG and finding tags sit flat on the bottom edge (3px radius, no shadow). States: hover darkens the contour to Slate Ink; selection is a 2px Printing Blue ring; a fresh apply breathes the Apply Green pulse three times; removed lines cross out their label and ghost to 60%.
+The one component that defines the system: a flat Tracing Panel outline, 1px Umber contour, 3px radius, no shadow. Inside: the full-height type cell at the left (min 46px wide, 14% category tint, 1px hairline at 40% of the hue, Inter 11px/700 code in the hue, ≥4.5:1 in both themes), an Inter 12px/600 label with mono 10px hint below, and a right-aligned tabular cost figure with no chip behind it. IAM/SG and finding tags sit flat on the bottom edge (3px radius, no shadow). Every node, real or virtual, is drawn at one size (216×64). The type cell is a fixed 52px; codes longer than six characters show a short form there (`DDB`, `SFN`) and lead the hint line in full. States: hover lifts the paper 3% toward ink and moves a solid contour to Pencil Grey (dashed contours keep their hairline color: bright dashes read as noise); selection is a 2px Printing Blue ring; a fresh apply breathes the Apply Green pulse three times; removed lines cross out their label and ghost to 60%.
 
 ### Buttons
 - **Shape:** rectangle, 6px radius, 1px Umber contour on Tracing Panel.
@@ -297,17 +297,17 @@ The one component that defines the system: a flat Tracing Panel outline, 1px Umb
 - **Error / Disabled:** errors use Revision Red text + banner tint; disabled sits at ~45% opacity with no styling tricks.
 
 ### Navigation
-Top bar: Tracing Panel, hairline bottom, 18px gutters; brand at 15px/700 nearly full tracking; state file in mono with the 8px live dot. Side tabs: 12px text, 2px ink underline on the active tab, never a filled block; inspector sub-tabs are quiet 6px-radius chips with Warm Paper fill when active.
+Top bar: Tracing Panel, hairline bottom, 18px gutters; brand at 15px/700 nearly full tracking; state file in mono. Connection health has no status light: when healthy the view picker's `live` says so, and trouble appears as a word (`reconnecting…` in Annotation Ochre, `offline` or `error` in Revision Red) only while it lasts. Side tabs: 12px text, 2px ink underline on the active tab, never a filled block; inspector sub-tabs are quiet 6px-radius chips with Warm Paper fill when active. The same sub-tab chips form the side panel's scope switch, the panel's first row above the tabs (`Whole stack | <resource>`, the resource being the last one selected). Scope and diagram selection move together. Cost, Findings and Usage, and their tab counts, follow the scope; the whole stack adds Changes in a plan or comparison, and one resource adds Details (its configuration, access and Terraform).
 
 ### Diagram chrome
-Everything drawn in the canvas is an annotation: A **Key** chip on the tool row (6px radius, accent when open) expands an inline panel with the chrome shadow listing the node encodings — stripe/tag, the "~" estimate marker, access chips, dashed-virtual, severity stamp, change pills — each row rendered with the real component classes so the legend can't drift from the nodes. solid Slate edges for real relationships, dashed Pencil-grey "uses" edges, dotted Network-Violet routes, active traced paths in accent with slow dash drift (paused under reduced motion), edge labels as plain mono text on the canvas (no bordered pill), and a dotted background. Selection and traces are crisp rings, never glows. Controls and minimap match button/card anatomy.
+Everything drawn in the canvas is an annotation: A **Key** chip on the tool row (6px radius, accent when open) expands an inline panel with the chrome shadow listing the node encodings — type cell, the "~" estimate marker, access chips, dashed-virtual, severity stamp, change pills — each row rendered with the real component classes so the legend can't drift from the nodes. solid Slate edges for real relationships, dashed Pencil-grey "uses" edges, dotted Network-Violet routes, active traced paths in accent with slow dash drift (paused under reduced motion), edge labels as plain mono text on the canvas (no bordered pill), the internet edge as a frameless caps label where its arrow starts, and a dotted background. The view picker's `live` state is plain Check Green text beside the live dot, not an outlined tag. Selection and traces are crisp rings, never glows. Controls and minimap match button/card anatomy.
 
 ## Do's and Don'ts
 
 ### Do:
 - **Do** keep every number in tabular figures, right-aligned where columns meet, with the quantity × price × source one mono line below (`font-size` 10–11px).
 - **Do** state the unknown: "not priced" as text in muted ink, never a bold $0.00, never blank.
-- **Do** use the category-outlined type code as the identity kit for any new resource kind before inventing any new color.
+- **Do** use the category-tinted type cell as the identity kit for any new resource kind before inventing any new color.
 - **Do** draw all structure with 1px hairlines; keep shadows to dropdown menus; strip shadows from print output.
 - **Do** keep dark mode a re-papering of the same drawing — identical structure, hue, spacing (only papers/shadows vary).
 - **Do** respect `prefers-reduced-motion`: pause dash animations and pulses, keep state changes readable through color and shape.
@@ -318,4 +318,4 @@ Everything drawn in the canvas is an annotation: A **Key** chip on the tool row 
 - **Don't** rely on color alone for added/changed/removed or severity — words or border style always accompany it, and comparisons show gaps without red/green verdicts.
 - **Don't** scale elevation or motion as decoration; shadows don't grow on hover, and idle screens don't animate.
 - **Don't** break the 10–28px type scale or set prose/labels in mono; ad-hoc sizes and "code-chic" text are off-system.
-- **Don't** let category hues become surfaces; they identify (stripe/tag/dot/bar), they don't fill.
+- **Don't** let category hues become surfaces beyond the type cell; they identify (type cell/dot/bar/tag text), they don't fill.

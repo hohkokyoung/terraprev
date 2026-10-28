@@ -8,7 +8,7 @@ const elk = new ELK();
 
 export const SIZE = {
   resource: { width: 216, height: 64 },
-  virtual: { width: 176, height: 48 },
+  virtual: { width: 216, height: 64 },
   emptyGroup: { width: 240, height: 84 },
 };
 

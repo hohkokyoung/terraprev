@@ -14,7 +14,7 @@ import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import type { Comparison, CostReport, SourceResult, StaticBundle } from '../../../shared/types.ts';
-import { componentMonthly, defaultUsage, formatUsd } from '../../../shared/cost.ts';
+import { formatUsd, lineCosts } from '../../../shared/cost.ts';
 import { diffSnapshots, diffSummary, renderDiffMarkdown } from '../../../shared/compare.ts';
 import { loadConfig, ROOT } from '../config.ts';
 import { buildBase, priceSnapshot, type SnapshotParts } from '../snapshot.ts';
@@ -26,6 +26,7 @@ import { AwsPricer } from '../pricing/aws/pricer.ts';
 import { SourceIndex } from '../source/hcl.ts';
 import { labelMap } from '../source/labels.ts';
 import { buildReport, defaultUsageValues, renderMarkdown } from '../../../shared/report.ts';
+import { readUsage, usagePath } from '../usage.ts';
 
 const { values: args } = parseArgs({
   options: {
@@ -106,7 +107,16 @@ const updatedAt = new Date(statSync(planFile ?? stateFile).mtime).toISOString();
 const snapshot = { ...parts!.base, cost: cost!, updatedAt };
 // Cost over time: only real applies count, not previews of what might be applied.
 if (mode === 'state') snapshot.history = recordHistory(config.historyDir, snapshot);
-const bundle: StaticBundle = { snapshot, sources, generatedAt: new Date().toISOString(), compare };
+// Priced at the same assumptions as the live page and the MCP server: terraprev.usage.json next to the state.
+const saved = readUsage(planFile ?? stateFile, say);
+const freeTier = args['free-tier'] || saved.freeTier;
+const usage = { ...defaultUsageValues(snapshot), ...saved.usage };
+if (Object.keys(saved.usage).length) say(`usage assumptions from ${usagePath(planFile ?? stateFile)}`);
+const bundle: StaticBundle = {
+  snapshot, sources, generatedAt: new Date().toISOString(), compare,
+  ...(Object.keys(saved.usage).length ? { usage: saved.usage } : {}),
+  ...(freeTier ? { freeTier } : {}),
+};
 
 // 3. Inline the built web app + data into one HTML file.
 const html = inline(await webTemplate(say, args.quiet).catch((err: Error) => fail(err.message)), bundle);
@@ -114,8 +124,8 @@ mkdirSync(dirname(outFile), { recursive: true });
 writeFileSync(outFile + '.tmp', html);
 renameSync(outFile + '.tmp', outFile); // an open tab never sees a half-written file
 
-const total = cost!.components.reduce((s, c) => s + componentMonthly(c, defaultUsage(cost!.usage)), 0);
-const diff = compare && diffSnapshots(compare, snapshot, defaultUsageValues(snapshot), args['free-tier']);
+const total = [...lineCosts(cost!.components, usage, freeTier).values()].reduce((s, l) => s + l.monthly, 0);
+const diff = compare && diffSnapshots(compare, snapshot, usage, freeTier);
 if (compare && diff) {
   // The same summary a pull request comment needs, next to the page.
   const md = outFile.replace(/\.html$/, '') + '.md';
@@ -125,10 +135,10 @@ if (compare && diff) {
 } else {
   say(`serial ${parts!.base.serial} · ${parts!.base.resourceCount} resources · ~${formatUsd(total)}/mo → ${outFile} (${Date.now() - t0} ms)`);
 }
-const print = { dark: args.theme === 'dark', freeTier: args['free-tier'], updatedAt: bundle.snapshot.updatedAt };
+const print = { dark: args.theme === 'dark', freeTier, updatedAt: bundle.snapshot.updatedAt };
 if (args.pdf || args['pdf-out']) await savePdf(printDiagram, outFile, resolve(args['pdf-out'] ?? outFile.replace(/\.html$/, '') + '.pdf'));
 if (args.report) {
-  const report = buildReport({ snapshot: bundle.snapshot, usage: defaultUsageValues(bundle.snapshot), freeTier: args['free-tier'], diff });
+  const report = buildReport({ snapshot: bundle.snapshot, usage, freeTier, diff });
   const base = join(dirname(outFile), `${report.title.split(':')[0].replace(/[^\w.-]+/g, '-')}-brief`);
   writeFileSync(`${base}.md`, renderMarkdown(report));
   say(`report → ${base}.md`);

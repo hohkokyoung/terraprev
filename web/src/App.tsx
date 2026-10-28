@@ -5,7 +5,7 @@ import { useSnapshot } from './lib/useSnapshot.ts';
 import { useUsage } from './lib/usage.ts';
 import { Diagram } from './components/Diagram.tsx';
 import { CostPanel } from './components/CostPanel.tsx';
-import { Inspector } from './components/Inspector.tsx';
+import { Inspector, NodeCost } from './components/Inspector.tsx';
 import { UsageSlider } from './components/UsageSlider.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 import { ReportView } from './components/ReportView.tsx';
@@ -38,7 +38,7 @@ function setPrintPage(landscape: boolean) {
 const PAGE = { width: 1123, height: 794 };
 
 export function App() {
-  const { snapshot: liveSnapshot, connection, error, progress, lastApply } = useSnapshot();
+  const { snapshot: liveSnapshot, connection, error, progress, lastApply, usageFile } = useSnapshot();
   // Live server: the stack itself, or compared with another state file, or after a plan (the header switch).
   const views = useView(liveSnapshot?.serial);
   // A plan, or a swapped comparison, shows a stack other than the live one; until it arrives, show the live one alone.
@@ -46,7 +46,7 @@ export function App() {
   const snapshot = otherShown && views.viewSnapshot ? views.viewSnapshot : liveSnapshot;
   const compare = STATIC?.compare ?? (otherShown && !views.viewSnapshot ? undefined : views.compare);
   const viewPending = views.loading && (otherShown ? !views.viewSnapshot : !views.compare);
-  const { values, overrides, set, zeroAll, resetAll, totals, lines, freeTier, setFreeTier } = useUsage(snapshot?.cost, typeof location !== 'undefined' && /[#&]free/.test(location.hash));
+  const { values, overrides, set, zeroAll, resetAll, totals, lines, freeTier, setFreeTier } = useUsage(snapshot?.cost, typeof location !== 'undefined' && /[#&]free/.test(location.hash), usageFile);
   const [sideOpen, setSideOpen] = useState(() => {
     try {
       return localStorage.getItem('terraprev.side') !== '0';
@@ -64,6 +64,9 @@ export function App() {
   };
   const hasFreeTier = !!snapshot?.cost.components.some((c) => c.freeTier);
   const [selected, setSelected] = useState<string>();
+  // Cost, Findings and Usage show the whole stack or one resource: the last one selected.
+  const [scope, setScope] = useState<'stack' | 'resource'>('stack');
+  const [focus, setFocus] = useState<string>();
   const [tab, setTab] = useState<Tab>(COMPARE ? 'changes' : 'cost');
   const [showSupporting, setShowSupporting] = useState(false);
   const [showDeps, setShowDeps] = useState(false);
@@ -137,34 +140,50 @@ export function App() {
   const ghostEdges = useMemo(() => new Set(diff?.ghosts.edges.map((e) => e.id)), [diff]);
   const deltas = useMemo(() => new Map(diff?.nodes.filter((n) => Math.abs(n.delta) >= 0.005).map((n) => [n.id, n.delta])), [diff]);
   const homeTab: Tab = diff ? 'changes' : 'cost';
-  const tabOrder: Tab[] = diff ? ['changes', 'cost', 'findings', 'usage', 'inspect'] : ['cost', 'findings', 'usage', 'inspect'];
+  const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
+  const focusNode = focus ? nodeById.get(focus) : undefined;
+  const oneResource = scope === 'resource' && !!focusNode;
+  // The scope picks the tabs: the stack's (with its changes), or one resource's (with its details).
+  const tabOrder: Tab[] = oneResource ? ['cost', 'findings', 'usage', 'inspect'] : diff ? ['changes', 'cost', 'findings', 'usage'] : ['cost', 'findings', 'usage'];
+  useEffect(() => {
+    if (!tabOrder.includes(tab)) setTab(tabOrder.includes(homeTab) ? homeTab : 'cost');
+  }, [oneResource, diff, tab]);
   // Switching view lands on what that view is about: the differences or changes, or the cost when live.
   useEffect(() => {
     if (STATIC) return;
     setSelected(undefined);
+    setScope('stack');
     setTab(views.view.against || isPlanPath(views.view.show) ? 'changes' : 'cost');
   }, [views.view.show, views.view.against]);
-  const selectedNode = nodes.find((n) => n.id === selected);
+  // Selecting a node scopes the panel to it; clearing the selection goes back to the whole stack.
   const select = (id: string | undefined) => {
     setSelected(id);
     if (id) {
+      setFocus(id);
+      setScope('resource');
       setTab('inspect');
       if (!sideOpen) toggleSide(true);
-    }
-    else if (tab === 'inspect') setTab(homeTab);
+    } else setScope('stack');
+  };
+  const showResource = (id: string) => {
+    setSelected(id);
+    setFocus(id);
+    setScope('resource');
   };
 
   const loading = snapshot?.cost.status === 'loading';
   const downloads = Object.values(progress).filter((p) => !p.done);
-  const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
   const insights = snapshot?.insights;
   const nodeFindings = useMemo(() => issuesByNode(insights ?? []), [insights]);
   const dataLoss = useMemo(
     () => new Set(diff?.kind === 'plan' ? diff.nodes.filter((n) => losesData(n.change, nodeById.get(n.id)?.type)).map((n) => n.id) : []),
     [diff, nodeById],
   );
-  const issueCount = insights?.filter(isIssue).length ?? 0;
-  const highCount = insights?.filter((f) => f.severity === 'high').length ?? 0;
+  // Tab counts follow the side panel's scope.
+  const scopedInsights = oneResource ? insights?.filter((f) => f.nodes.includes(focus!)) : insights;
+  const scopedUsage = oneResource ? snapshot?.cost.usage.filter((p) => p.nodeId === focus) : snapshot?.cost.usage;
+  const issueCount = scopedInsights?.filter(isIssue).length ?? 0;
+  const highCount = scopedInsights?.filter((f) => f.severity === 'high').length ?? 0;
 
   return (
     <div className={`app ${printing ? 'is-printing' : ''} ${compare?.kind === 'stacks' ? 'app--stacks' : ''}`}>
@@ -177,7 +196,12 @@ export function App() {
           terraprev
         </div>
         <div className="statefile" title={snapshot?.stateFile}>
-          <span className={`dot dot--${error ? 'error' : connection}`} role="img" aria-label={error ? 'Connection error' : connection === 'live' ? 'Live: updates on every apply' : `Connection: ${connection}`} title={error ? 'Connection error' : connection === 'live' ? 'Live: updates on every apply' : `Connection: ${connection}`} />
+          {/* Connection trouble is said in words, and only when there is some; the picker's "live" covers the healthy case. */}
+          {(error || connection === 'offline' || (connection === 'connecting' && liveSnapshot)) && (
+            <span className={`connstate ${error || connection === 'offline' ? 'connstate--bad' : ''}`} role="status" title={error}>
+              {error ? 'error' : connection === 'offline' ? 'offline' : 'reconnecting…'}
+            </span>
+          )}
           {!STATIC && liveSnapshot && <ViewSwitch view={views.view} setView={views.setView} files={views.files} onOpen={views.refreshFiles} />}
           {snapshot && compare && !STATIC ? null : snapshot && compare ? (
             <>
@@ -313,10 +337,10 @@ export function App() {
               <ul className="keypanel" id="diagkey" aria-label="How to read the diagram">
                 <li aria-hidden="true"><span className="keypanel__title" style={{ gridColumn: '1 / -1' }}>How to read the diagram</span></li>
                 <li>
-                  <span className="sample" style={{ ['--cat' as string]: 'var(--cat-storage)' }}>
-                    <span className="rnode__tag">DB</span>
+                  <span className="sample" style={{ ['--cat' as string]: 'var(--cat-database)' }}>
+                    <span className="rnode__tag">RDS</span>
                   </span>
-                  <span>4px stripe and tinted tag: the resource's AWS category, reused in the cost rows and legend.</span>
+                  <span>Tinted type cell: the resource's AWS category, reused in the cost rows and legend.</span>
                 </li>
                 <li>
                   <span className="sample">
@@ -333,7 +357,7 @@ export function App() {
                 </li>
                 <li>
                   <span className="sample"><span className="kdash" /></span>
-                  <span>Dashed contour: a virtual boundary such as a router or the internet edge, not a deployed resource.</span>
+                  <span>Dashed contour: something virtual, such as a router or an instance an Auto Scaling group launched, not a resource in state.</span>
                 </li>
                 <li>
                   <span className="sample"><span className="sev sev--high">High</span></span>
@@ -388,9 +412,26 @@ export function App() {
           {sideOpen ? '›' : '‹'}
         </button>
         <aside className="side" id="sidepanel" tabIndex={-1} aria-label="Costs, findings and resource details" hidden={!sideOpen}>
+          {snapshot && (
+            <div className="subtabs scopebar" role="group" aria-label="Show for">
+              <button type="button" className={oneResource ? '' : 'is-on'} aria-pressed={!oneResource} onClick={() => select(undefined)}>
+                Whole stack
+              </button>
+              <button
+                type="button"
+                className={oneResource ? 'is-on' : ''}
+                aria-pressed={oneResource}
+                disabled={!focusNode}
+                title={focusNode ? `Only ${focusNode.label}` : 'Select a resource on the diagram first'}
+                onClick={() => focus && showResource(focus)}
+              >
+                {focusNode?.label ?? 'One resource'}
+              </button>
+            </div>
+          )}
           <nav className="tabs" role="tablist" aria-label="Side panel" onKeyDown={(e) => {
             // Arrow keys move between tabs; only the current tab is in the Tab order.
-            const order = tabOrder.filter((t) => t !== 'inspect' || selectedNode);
+            const order = tabOrder;
             const i = order.indexOf(tab);
             const next = e.key === 'ArrowRight' ? order[(i + 1) % order.length] : e.key === 'ArrowLeft' ? order[(i - 1 + order.length) % order.length] : e.key === 'Home' ? order[0] : e.key === 'End' ? order[order.length - 1] : undefined;
             if (!next) return;
@@ -399,13 +440,13 @@ export function App() {
             document.getElementById(`tab-${next}`)?.focus();
           }}>
             {tabOrder.map((t) => (
-              <button key={t} id={`tab-${t}`} role="tab" aria-selected={tab === t} aria-controls="sidepanel-body" tabIndex={tab === t ? 0 : -1} className={tab === t ? 'is-on' : ''} onClick={() => setTab(t)} disabled={t === 'inspect' && !selectedNode}>
+              <button key={t} id={`tab-${t}`} role="tab" aria-selected={tab === t} aria-controls="sidepanel-body" tabIndex={tab === t ? 0 : -1} className={tab === t ? 'is-on' : ''} onClick={() => setTab(t)}>
                 {t === 'changes' ? `${diff?.kind === 'stacks' ? 'Differences' : 'Changes'} (${diff?.nodes.filter((n) => !n.group && !n.supporting).length ?? 0})` : t === 'cost' ? 'Cost' : t === 'findings' ? (
                   <>
                     Findings{snapshot ? ` (${issueCount})` : ''}
                     {highCount > 0 && <span className="sev sev--high tabs__flag">High {highCount}</span>}
                   </>
-                ) : t === 'usage' ? `Usage${snapshot ? ` (${snapshot.cost.usage.length})` : ''}` : 'Resource'}
+                ) : t === 'usage' ? `Usage${scopedUsage ? ` (${scopedUsage.length})` : ''}` : 'Details'}
               </button>
             ))}
           </nav>
@@ -415,37 +456,66 @@ export function App() {
             ) : tab === 'changes' && diff ? (
               <ChangesPanel diff={diff} nodesById={nodeById} onSelect={select} />
             ) : tab === 'findings' ? (
-              <FindingsPanel insights={snapshot.insights} nodesById={nodeById} onSelect={select} />
-            ) : tab === 'inspect' && selectedNode ? (
-              <Inspector findings={snapshot.insights.filter((f) => f.nodes.includes(selectedNode.id)).sort(bySeverity)} change={diff?.nodes.find((n) => n.id === selectedNode.id)} compare={diff} freeTier={freeTier} edges={edges} nodesById={nodeById} lines={lines} node={selectedNode} cost={snapshot.cost} values={values} overrides={overrides} setUsage={set} expanded={expanded.has(selectedNode.id)} onToggleExpand={() => toggleExpand(selectedNode.id)} onSelect={select} stateSerial={snapshot.serial} />
-            ) : tab === 'usage' ? (
-              <div className="usagelist">
-                <p className="muted small">
-                  Terraform knows what you deployed, not how much traffic it gets. Set expected monthly usage here; values are saved in
-                  this browser and survive re-applies.
-                </p>
-                <div className="usagebar">
-                  <button type="button" onClick={zeroAll} disabled={snapshot.cost.usage.every((p) => values[p.key] === 0)}>
-                    Set all to 0
-                  </button>
-                  <button type="button" onClick={resetAll} disabled={Object.keys(overrides).length === 0}>
-                    Reset to defaults
-                  </button>
-                  <span className="muted small">{totals.usage === 0 ? 'showing always-on cost only' : `usage adds ${formatUsd(totals.usage)}/mo`}</span>
-                </div>
-                {groupBy(snapshot.cost.usage, (p) => p.nodeId).map(([nodeId, params]) => (
-                  <section key={nodeId}>
-                    <h3>
-                      <button type="button" className="linkish" onClick={() => select(nodeId)}>
-                        {nodeById.get(nodeId)?.label ?? nodeId}
+              <FindingsPanel insights={scopedInsights ?? []} nodesById={nodeById} onSelect={select} />
+            ) : tab === 'inspect' && focusNode ? (
+              <Inspector findings={snapshot.insights.filter((f) => f.nodes.includes(focusNode.id)).sort(bySeverity)} change={diff?.nodes.find((n) => n.id === focusNode.id)} compare={diff} freeTier={freeTier} edges={edges} nodesById={nodeById} lines={lines} node={focusNode} cost={snapshot.cost} values={values} overrides={overrides} setUsage={set} expanded={expanded.has(focusNode.id)} onToggleExpand={() => toggleExpand(focusNode.id)} onSelect={select} stateSerial={snapshot.serial} />
+            ) : tab === 'usage' ? (() => {
+              const groups = groupBy(snapshot.cost.usage, (p) => p.nodeId);
+              const shown = oneResource ? groups.filter(([n]) => n === focus) : groups;
+              return (
+                <div className="usagelist">
+                  <p className="muted small">
+                    Terraform knows what you deployed, not how much traffic it gets. Set expected monthly usage here; values are saved in
+                    this browser and survive re-applies.
+                  </p>
+                  {oneResource && !shown.length && (
+                    <p className="muted small">{focusNode!.label} has no usage-based charges; its cost is always-on.</p>
+                  )}
+                  {!oneResource && (
+                    <div className="usagebar">
+                      <button type="button" onClick={zeroAll} disabled={snapshot.cost.usage.every((p) => values[p.key] === 0)}>
+                        Set all to 0
                       </button>
-                      <span className="muted"> {formatUsd(totals.byNode.get(nodeId) ?? 0)}</span>
-                    </h3>
-                    {params.map((p) => (
-                      <UsageSlider key={p.key} param={p} value={values[p.key] ?? p.default} overridden={p.key in overrides} onChange={(v) => set(p.key, v)} />
-                    ))}
-                  </section>
-                ))}
+                      <button type="button" onClick={resetAll} disabled={Object.keys(overrides).length === 0}>
+                        Reset to defaults
+                      </button>
+                      <span className="muted small">{totals.usage === 0 ? 'showing always-on cost only' : `usage adds ${formatUsd(totals.usage)}/mo`}</span>
+                    </div>
+                  )}
+                  {shown.map(([nodeId, params]) => (
+                    <section key={nodeId}>
+                      <h3>
+                        <button
+                          type="button"
+                          className="linkish"
+                          title={oneResource ? 'Open this resource' : 'Show only this resource'}
+                          onClick={() => (oneResource ? select(nodeId) : showResource(nodeId))}
+                        >
+                          {nodeById.get(nodeId)?.label ?? nodeId}
+                        </button>
+                        <span className="muted"> {formatUsd(totals.byNode.get(nodeId) ?? 0)}</span>
+                      </h3>
+                      {params.map((p) => (
+                        <UsageSlider key={p.key} param={p} value={values[p.key] ?? p.default} overridden={p.key in overrides} onChange={(v) => set(p.key, v)} />
+                      ))}
+                    </section>
+                  ))}
+                </div>
+              );
+            })() : oneResource ? (
+              <div className="costpanel">
+                <section className="scopehead">
+                  <h3>
+                    <button type="button" className="linkish" title="Open this resource" onClick={() => select(focus!)}>
+                      {focusNode!.label}
+                    </button>
+                    <span className="muted"> {formatUsd(totals.byNode.get(focus!) ?? 0)}</span>
+                  </h3>
+                  {!snapshot.cost.components.some((c) => c.nodeId === focus) && !snapshot.cost.unpriced.some((u) => u.nodeId === focus) && !(focusNode!.virtual && focusNode!.type === 'aws_instance') && (
+                    <p className="muted small">No charges of its own.</p>
+                  )}
+                </section>
+                <NodeCost node={focusNode!} cost={snapshot.cost} values={values} lines={lines} freeTier={freeTier} />
               </div>
             ) : (
               <CostPanel cost={snapshot.cost} nodes={nodes} byNode={totals.byNode} total={totals.total} usage={values} freeTier={freeTier} history={compare ? undefined : snapshot.history} onSelect={select} />

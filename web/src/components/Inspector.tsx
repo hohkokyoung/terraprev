@@ -84,24 +84,7 @@ export function Inspector({ findings, node, cost, values, overrides, setUsage, e
         </section>
       )}
 
-      {node.virtual && node.type === 'aws_instance' && (
-        <p className="muted small">Launched by the Auto Scaling Group. Its cost is counted on the ASG.</p>
-      )}
-
-      {components.length > 0 && (
-        <section>
-          <h3>Cost breakdown</h3>
-          <table className="lines">
-            <tbody>
-              {components.map((c) => (
-                <Line key={c.id} c={c} values={values} line={lines.get(c.id)} />
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      <NodeSavings cost={cost} nodeId={node.id} values={values} freeTier={freeTier} />
+      <NodeCost node={node} cost={cost} values={values} lines={lines} freeTier={freeTier} withUnpriced={false} />
 
       {params.length > 0 && (
         <section>
@@ -156,6 +139,47 @@ export function Inspector({ findings, node, cost, values, overrides, setUsage, e
       </>
       )}
     </div>
+  );
+}
+
+/** One resource's bill: line items, ways to save, and what isn't priced. Shared by the inspector and the side panel's resource scope. */
+export function NodeCost({ node, cost, values, lines, freeTier, withUnpriced = true }: { node: GraphNode; cost: CostReport; values: Record<string, number>; lines: Map<string, LineCost>; freeTier: boolean; withUnpriced?: boolean }) {
+  const components = cost.components.filter((c) => c.nodeId === node.id);
+  const unpriced = cost.unpriced.filter((u) => u.nodeId === node.id);
+  return (
+    <>
+      {node.virtual && node.type === 'aws_instance' && (
+        <section>
+          <p className="muted small flush">Launched by the Auto Scaling Group. Its cost is counted on the ASG.</p>
+        </section>
+      )}
+
+      {components.length > 0 && (
+        <section>
+          <h3>Cost breakdown</h3>
+          <table className="lines">
+            <tbody>
+              {components.map((c) => (
+                <Line key={c.id} c={c} values={values} line={lines.get(c.id)} />
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      <NodeSavings cost={cost} nodeId={node.id} values={values} freeTier={freeTier} />
+
+      {withUnpriced && unpriced.length > 0 && (
+        <section>
+          <h3>Not priced</h3>
+          <ul className="warnlist">
+            {unpriced.map((u, i) => (
+              <li key={i}>{u.reason}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </>
   );
 }
 

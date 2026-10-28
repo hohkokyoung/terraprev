@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -34,7 +34,56 @@ const callJson = async (name: string, args: Record<string, unknown> = {}) => JSO
 
 test('lists every tool', async () => {
   const { tools } = await client.listTools();
-  assert.deepEqual(tools.map((t) => t.name).sort(), ['build_snapshot', 'compare_stacks', 'cost_history', 'describe_resource', 'estimate_cost', 'get_brief', 'list_findings', 'preview_plan', 'stack_overview', 'suggest_savings']);
+  assert.deepEqual(tools.map((t) => t.name).sort(), ['build_snapshot', 'compare_stacks', 'cost_history', 'describe_resource', 'estimate_cost', 'find_resources', 'get_brief', 'list_findings', 'preview_plan', 'set_usage', 'stack_overview', 'suggest_savings', 'what_if']);
+});
+
+test('prompts: ready-made questions that name the tools to use', async () => {
+  const { prompts } = await client.listPrompts();
+  assert.deepEqual(prompts.map((p) => p.name).sort(), ['cost_change', 'explain_bill', 'harden_stack', 'price_change', 'review_plan']);
+  const review = await client.getPrompt({ name: 'review_plan', arguments: { plan: 'plan.json' } });
+  const text = (review.messages[0].content as { text: string }).text;
+  assert.match(text, /plan\.json/);
+  assert.match(text, /preview_plan/);
+  const price = await client.getPrompt({ name: 'price_change', arguments: { change: 'make app-db multi-AZ' } });
+  assert.match((price.messages[0].content as { text: string }).text, /make app-db multi-AZ[\s\S]*what_if/);
+});
+
+test('what if: priced like a plan, without writing anything', async () => {
+  const before = await callJson('estimate_cost');
+  const more = await callJson('what_if', { changes: [{ resource: 'app-asg', set: { desired_capacity: 4 } }] });
+  assert.ok(more.delta > 0, 'a fourth instance should cost more');
+  assert.equal(more.before, before.total);
+  assert.ok(more.changes.some((c: { resource: string }) => c.resource === 'app-asg'));
+  assert.equal(more.markdown, undefined, 'no pull-request Markdown: nothing here is a plan');
+  const arm = await callJson('what_if', { changes: [{ resource: 'aws_launch_template.app', set: { instance_type: 't4g.small' } }] });
+  assert.ok(arm.delta < 0, 'Graviton should be cheaper');
+  const gone = await callJson('what_if', { changes: [{ resource: 'sessions', remove: true }] });
+  assert.ok(gone.delta < 0);
+  assert.ok(gone.changes.some((c: { resource: string; change: string }) => c.resource === 'sessions' && /destroy/.test(c.change)));
+  const backups = await callJson('what_if', { changes: [{ resource: 'app-db', set: { backup_retention_period: 7 } }] });
+  assert.ok(backups.resolvedFindings.some((t: string) => /backups/i.test(t)), 'turning backups on resolves the backup finding');
+  const typo = await callJson('what_if', { changes: [{ resource: 'app-db', set: { instance_clas: 'db.t4g.micro' } }] });
+  assert.match(typo.warnings[0], /no "instance_clas"/);
+  const missing = await call('what_if', { changes: [{ resource: 'nope', set: { a: 1 } }] });
+  assert.ok(missing.isError);
+  assert.match(missing.text, /No resource "nope"/);
+  assert.equal((await callJson('estimate_cost')).total, before.total, 'what_if must not change the stack');
+});
+
+test('find resources: by kind, cost, internet reach and findings', async () => {
+  const db = await callJson('find_resources', { kind: 'database' });
+  assert.deepEqual(db.resources.map((r: { name: string }) => r.name).sort(), ['app-db', 'sessions']);
+  const withParts = await callJson('find_resources', { kind: 'database', include_supporting: true });
+  assert.ok(withParts.resources.some((r: { name: string }) => r.name === 'db-subnets'), 'the subnet group is a supporting piece');
+  const open = await callJson('find_resources', { reachable_from_internet: true });
+  assert.ok(open.resources.some((r: { name: string }) => r.name === 'web-alb'));
+  assert.ok(open.resources.every((r: { reachableFromInternet: boolean }) => r.reachableFromInternet));
+  const dear = await callJson('find_resources', { min_monthly: 20 });
+  assert.ok(dear.resources.length > 0 && dear.resources.every((r: { monthly: number }) => r.monthly >= 20));
+  const high = await callJson('find_resources', { finding_severity: 'high' });
+  assert.ok(high.resources.some((r: { name: string; findings: { worst: string } }) => r.name === 'app-db' && r.findings.worst === 'high'));
+  const inPrivate = await callJson('find_resources', { in: 'private' });
+  assert.deepEqual(inPrivate.resources.map((r: { name: string }) => r.name), ['app-db']);
 });
 
 test('plan preview: cost before and after, every change, and Markdown for a PR', async () => {
@@ -138,4 +187,38 @@ test('usage must be non-negative, and the documented example key is a real one',
 test('brief is the same Markdown the CLI writes', async () => {
   const { text } = await call('get_brief');
   for (const h of ['## Executive summary', '```mermaid', '## Findings & recommendations']) assert.ok(text.includes(h), `missing ${h}`);
+});
+
+// Last: it writes terraprev.usage.json, which every later answer is priced at.
+test('saved usage assumptions price every answer, and set_usage writes them', async () => {
+  const file = join(root, 'terraprev.usage.json');
+  const base = await callJson('estimate_cost');
+  const p = base.usageParams[0];
+  try {
+    const saved = await callJson('set_usage', { usage: { [p.key]: p.max } });
+    assert.equal(saved.file, file);
+    assert.deepEqual(saved.saved, { [p.key]: p.max });
+    assert.ok(existsSync(file));
+    const after = await callJson('estimate_cost');
+    assert.ok(after.total > base.total, 'the saved value should raise the total');
+    assert.equal(after.total, saved.total);
+    assert.equal(after.usageParams.find((x: { key: string }) => x.key === p.key).source, 'saved');
+    assert.equal(after.assumptionsFile, file);
+    // A call's own override still wins, for that call only.
+    const once = await callJson('estimate_cost', { usage: { [p.key]: p.default } });
+    assert.equal(once.total, base.total);
+    // The brief and the overview read the same file.
+    const overview = await callJson('stack_overview');
+    assert.ok(overview.topCosts.length > 0);
+    const odd = await call('set_usage', { usage: { 'no:such-key': 1 } });
+    assert.ok(odd.isError);
+    assert.match(odd.text, /Unknown usage keys/);
+    // Back to the default: the file has nothing left to say, so it goes.
+    const reset = await callJson('set_usage', { usage: { [p.key]: null } });
+    assert.deepEqual(reset.saved, {});
+    assert.ok(!existsSync(file));
+    assert.equal((await callJson('estimate_cost')).total, base.total);
+  } finally {
+    rmSync(file, { force: true });
+  }
 });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PriceProgress, Snapshot } from '../../../shared/types.ts';
+import type { PriceProgress, Snapshot, UsageFile } from '../../../shared/types.ts';
 import { STATIC } from './staticData.ts';
 
 export type Connection = 'connecting' | 'live' | 'offline' | 'static';
@@ -19,6 +19,8 @@ export function useSnapshot() {
   const [error, setError] = useState<string>();
   const [progress, setProgress] = useState<Record<string, PriceProgress>>({});
   const [lastApply, setLastApply] = useState<ApplyEvent>();
+  /** terraprev.usage.json as the server last saw it; `origin` is the page that changed it. */
+  const [usageFile, setUsageFile] = useState<UsageFile & { origin?: string }>();
   const prev = useRef<Snapshot>(undefined);
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export function useSnapshot() {
       setSnapshot(next);
       setError(undefined);
     });
+    es.addEventListener('usage', (e) => setUsageFile(JSON.parse((e as MessageEvent).data)));
     es.addEventListener('progress', (e) => {
       const p: PriceProgress = JSON.parse((e as MessageEvent).data);
       setProgress((cur) => ({ ...cur, [p.source]: p }));
@@ -55,5 +58,5 @@ export function useSnapshot() {
     return () => es.close();
   }, []);
 
-  return { snapshot, connection, error, progress, lastApply };
+  return { snapshot, connection, error, progress, lastApply, usageFile };
 }

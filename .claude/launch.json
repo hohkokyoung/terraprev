@@ -43,6 +43,20 @@
       "port": 4610
     },
     {
+      "name": "api-demo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "-w",
+        "server"
+      ],
+      "env": {
+        "TERRAPREV_STATE": "demo.tfstate"
+      },
+      "port": 4610
+    },
+    {
       "name": "web",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

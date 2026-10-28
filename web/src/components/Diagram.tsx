@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Background, BackgroundVariant, Controls, MiniMap, Panel, ReactFlow, useNodesInitialized, useReactFlow, useStore, type Edge, type Node } from '@xyflow/react';
+import { Background, BackgroundVariant, Controls, MiniMap, ReactFlow, useNodesInitialized, useReactFlow, useStore, type Edge, type Node } from '@xyflow/react';
 import { awsName } from '../../../shared/awsNames.ts';
 import { formatUsd } from '../../../shared/cost.ts';
-import { cutOff, prefersReducedMotion, revealViewport, startViewport, wholeViewport, type Rect } from '../lib/viewport.ts';
+import { prefersReducedMotion, revealViewport, startViewport, type Rect } from '../lib/viewport.ts';
 
 /** Viewport carried across a pure-resize remount (side rail, print): opening placement would
- *  otherwise throw away whatever the user had framed, including "Show whole stack". A new
+ *  otherwise throw away whatever the user had framed. A new
  *  stack bumps `version`, so only same-version remounts pick it up. */
 let carried: { version: number; viewport: { x: number; y: number; zoom: number } } | undefined;
 import type { CostComponent, GraphEdge, GraphNode } from '../../../shared/types.ts';
@@ -35,7 +35,7 @@ interface Props {
   /** Static figure (report): no controls, minimap, panning or clicking. */
   embedded?: boolean;
   /** Changes when the canvas switches to a page (print). Side-rail resizes are left to React Flow's own
-   *  measure — remounting there would throw away the user's framing, including "Show whole stack". */
+   *  measure — remounting there would throw away the user's framing. */
   fitSignal?: unknown;
   costByNode: Map<string, number>;
   components: CostComponent[];
@@ -237,8 +237,7 @@ export function Diagram({ nodes, edges, showSupporting, showDeps, expanded, onTo
 
 /**
  * Lives inside ReactFlow so it can read the measured nodes. Places the opening view once per mount,
- * brings a newly selected resource on screen at a readable size, and offers the whole stack when
- * only part of it is showing.
+ * and brings a newly selected resource on screen at a readable size.
  */
 function ViewportControl({ focus, selected, version, onPlaced }: { focus: string[]; selected?: string; version: number; onPlaced: () => void }) {
   const rf = useReactFlow();
@@ -246,7 +245,6 @@ function ViewportControl({ focus, selected, version, onPlaced }: { focus: string
   const width = useStore((s) => s.width);
   const height = useStore((s) => s.height);
   const nodes = useStore((s) => s.nodes);
-  const transform = useStore((s) => s.transform);
   const placed = useRef(false);
   const lastSelected = useRef(selected);
   // Keep the latest user framing on record so a resize remount can put it back.
@@ -283,19 +281,5 @@ function ViewportControl({ focus, selected, version, onPlaced }: { focus: string
     if (next) rf.setViewport(next, { duration: prefersReducedMotion() ? 0 : 320 });
   }, [selected, graph, width, height, rf]);
 
-  const [x, y, zoom] = transform;
-  if (!graph || !placed.current || !cutOff(graph, { x, y, zoom }, width, height)) return null;
-  const whole = wholeViewport(graph, width, height);
-  return (
-    <Panel position="bottom-center">
-      <button
-        type="button"
-        className="wholestack"
-        onClick={() => rf.setViewport(whole, { duration: prefersReducedMotion() ? 0 : 320 })}
-        title={`Zoom out to the whole stack (${Math.round(whole.zoom * 100)}%)`}
-      >
-        Show whole stack
-      </button>
-    </Panel>
-  );
+  return null;
 }
