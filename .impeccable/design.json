@@ -575,7 +575,8 @@
           "cat-api": "#46a5af",
           "cat-security": "#d67e75",
           "cat-monitoring": "#bc8f1a",
-          "cat-other": "#94979c"
+          "cat-other": "#94979c",
+          "sev-high-ink": "#121316"
         },
         "shadows": {
           "chrome": "0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.25)"
