@@ -3,6 +3,11 @@ import { Background, BackgroundVariant, Controls, MiniMap, Panel, ReactFlow, use
 import { awsName } from '../../../shared/awsNames.ts';
 import { formatUsd } from '../../../shared/cost.ts';
 import { cutOff, prefersReducedMotion, revealViewport, startViewport, wholeViewport, type Rect } from '../lib/viewport.ts';
+
+/** Viewport carried across a pure-resize remount (side rail, print): opening placement would
+ *  otherwise throw away whatever the user had framed, including "Show whole stack". A new
+ *  stack bumps `version`, so only same-version remounts pick it up. */
+let carried: { version: number; viewport: { x: number; y: number; zoom: number } } | undefined;
 import type { CostComponent, GraphEdge, GraphNode } from '../../../shared/types.ts';
 import { fitViewport, layoutGraph, type FlowNodeData } from '../lib/layout.ts';
 import { nodeTypes } from './nodes.tsx';
@@ -29,7 +34,8 @@ interface Props {
   pageSize?: { width: number; height: number };
   /** Static figure (report): no controls, minimap, panning or clicking. */
   embedded?: boolean;
-  /** Changes when the app resizes the canvas (side panel, print). Remounting measures the new size synchronously and fits. */
+  /** Changes when the canvas switches to a page (print). Side-rail resizes are left to React Flow's own
+   *  measure — remounting there would throw away the user's framing, including "Show whole stack". */
   fitSignal?: unknown;
   costByNode: Map<string, number>;
   components: CostComponent[];
@@ -50,7 +56,7 @@ interface Props {
 export function Diagram({ nodes, edges, showSupporting, showDeps, expanded, onToggleExpand, flowMode, fitSignal, pageSize, embedded, costByNode, components, fresh, changes, deltas, ghostEdges, findings, dataLoss, selected, onSelect }: Props) {
   const [layout, setLayout] = useState<{ nodes: Node[]; edges: Edge[] }>({ nodes: [], edges: [] });
   // Bumped when a new stack is laid out; remounting ReactFlow re-runs its built-in fitView once nodes are measured.
-  // Toggles that only show or hide nodes (supporting resources, expanded chips) keep the user's zoom and position.
+  // Toggles that only show or hide nodes (supporting resources, expanded chips) and side-rail resizes keep the user's view.
   const [version, setVersion] = useState(0);
   const fittedStack = useRef<string | undefined>(undefined);
   const stackKey = useMemo(() => nodes.map((n) => n.id).join('|') + '#' + edges.map((e) => e.id).join('|'), [nodes, edges]);
@@ -212,7 +218,7 @@ export function Diagram({ nodes, edges, showSupporting, showDeps, expanded, onTo
       proOptions={{ hideAttribution: true }}
     >
       <Background variant={BackgroundVariant.Dots} gap={18} size={1} className="bg-dots" />
-      {!pageSize && <ViewportControl focus={focus} selected={selected} onPlaced={() => setPlacedKey(viewKey)} />}
+      {!pageSize && <ViewportControl focus={focus} selected={selected} version={version} onPlaced={() => setPlacedKey(viewKey)} />}
       {!embedded && <Controls showInteractive={false} position="bottom-left" fitViewOptions={{ padding: 0.05, duration: prefersReducedMotion() ? 0 : 320 }} />}
       {!embedded && <MiniMap
         pannable
@@ -234,7 +240,7 @@ export function Diagram({ nodes, edges, showSupporting, showDeps, expanded, onTo
  * brings a newly selected resource on screen at a readable size, and offers the whole stack when
  * only part of it is showing.
  */
-function ViewportControl({ focus, selected, onPlaced }: { focus: string[]; selected?: string; onPlaced: () => void }) {
+function ViewportControl({ focus, selected, version, onPlaced }: { focus: string[]; selected?: string; version: number; onPlaced: () => void }) {
   const rf = useReactFlow();
   const initialized = useNodesInitialized();
   const width = useStore((s) => s.width);
@@ -243,6 +249,10 @@ function ViewportControl({ focus, selected, onPlaced }: { focus: string[]; selec
   const transform = useStore((s) => s.transform);
   const placed = useRef(false);
   const lastSelected = useRef(selected);
+  // Keep the latest user framing on record so a resize remount can put it back.
+  useEffect(() => {
+    if (placed.current) carried = { version, viewport: rf.getViewport() };
+  });
 
   const graph = useMemo<Rect | undefined>(
     () => (initialized && nodes.length ? rf.getNodesBounds(nodes.filter((n) => !n.hidden)) : undefined),
@@ -253,8 +263,13 @@ function ViewportControl({ focus, selected, onPlaced }: { focus: string[]; selec
     if (placed.current || !graph || !width || !height) return;
     placed.current = true;
     lastSelected.current = selected;
-    const target = focus.length ? rf.getNodesBounds(focus) : undefined;
-    rf.setViewport(startViewport(graph, target, width, height));
+    const keep = carried && carried.version === version ? carried.viewport : undefined;
+    if (keep) rf.setViewport(keep);
+    else {
+      const target = focus.length ? rf.getNodesBounds(focus) : undefined;
+      rf.setViewport(startViewport(graph, target, width, height));
+    }
+    carried = undefined;
     onPlaced();
     // Once per mount: later changes keep the user's view.
     // eslint-disable-next-line react-hooks/exhaustive-deps

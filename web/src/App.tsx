@@ -358,7 +358,7 @@ export function App() {
                 expanded={expanded}
                 onToggleExpand={toggleExpand}
                 flowMode={flowMode}
-                fitSignal={`${sideOpen}:${printing}`}
+                fitSignal={String(printing)}
                 pageSize={printing ? PAGE : undefined}
                 costByNode={totals.byNode}
                 components={snapshot.cost.components}
