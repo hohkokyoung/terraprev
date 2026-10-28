@@ -4,9 +4,9 @@
 // Every frame is a function of time; all timings live in brag-timeline.ts, shared with the soundtrack.
 
 import type { CSSProperties, ReactNode } from 'react';
-import { AbsoluteFill, Freeze, Html5Audio, interpolate, interpolateColors, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Html5Audio, interpolate, interpolateColors, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { at, ease, Shot, union } from './Shot.tsx';
-import { DOLLAR, FULL, HOOK, LOOP, MORPH, OUTRO, POSTER_AT, REVEAL, RISKS, STRETCH, WHATIF, type SceneName, type Timeline } from './brag-timeline.ts';
+import { DOLLAR, FULL, HOOK, LOOP, MORPH, OUTRO, REVEAL, RISKS, STRETCH, WHATIF, type SceneName, type Timeline } from './brag-timeline.ts';
 
 export const BRAG_FPS = 30;
 export const BRAG_FRAMES = Math.round(FULL.duration * STRETCH * BRAG_FPS);
@@ -38,14 +38,13 @@ const rise = (t: number, a: number, b = Infinity, px = 22): CSSProperties => {
   return { opacity: p * out, transform: `translateY(${(1 - p) * px - (1 - out) * 10}px)` };
 };
 
+// The opening frame is the poster: the headline is already settled on it, so every platform's
+// thumbnail shows it and playback starts without a jump (a frozen frame from later in the video
+// would flash for one frame before the hook).
 export function Brag() {
-  // Frame 0 is the poster (the cost breakdown, settled) so every platform's thumbnail shows it.
-  const posterFrame = Math.round(POSTER_AT * STRETCH * BRAG_FPS);
   return (
     <AbsoluteFill style={{ background: C.bg }}>
-      <Freeze frame={posterFrame} active={(f) => f === 0}>
-        <Stage tl={FULL} />
-      </Freeze>
+      <Stage tl={FULL} />
       <Html5Audio src={staticFile('brag.wav')} />
     </AbsoluteFill>
   );
@@ -175,8 +174,9 @@ function Headline({ t, end }: { t: number; end: number }) {
   const line: CSSProperties = { font: '700 92px/1.12 Inter', letterSpacing: '-0.035em', textAlign: 'center', whiteSpace: 'nowrap' };
   return (
     <div style={{ position: 'absolute', left: 0, right: 0, top: 235, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-      <div style={{ ...line, ...rise(t, 0.05, end + 0.25, 30) }}>Your AWS bill,</div>
-      <div style={{ ...line, color: C.accent, ...rise(t, HOOK.question, end + 0.25, 30) }}>before AWS sends it.</div>
+      {/* Settled from the first frame (the poster); only the terminal under it moves. */}
+      <div style={{ ...line, ...rise(t, -1, end + 0.25, 30) }}>Your AWS bill,</div>
+      <div style={{ ...line, color: C.accent, ...rise(t, -1, end + 0.25, 30) }}>before AWS sends it.</div>
     </div>
   );
 }

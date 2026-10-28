@@ -45,7 +45,6 @@ export const HOOK = {
   perKey: 0.05,
   applied: 0.95, // "Apply complete!"
   answer: 2.3, // terraprev's line, with the monthly total
-  question: 1.3, // second headline line
 };
 
 /** The terminal glides from under the headline to the stage slot and becomes the browser. */
@@ -71,9 +70,6 @@ export const WHATIF = {
 };
 
 export const OUTRO = { windowOut: 0, mark: 0.3, chips: 0.6, url: 0.9 };
-
-/** Poster frame: the cost breakdown, settled. */
-export const POSTER_AT = FULL.scenes.dollar![0] + 3.0;
 
 // ── cues for the soundtrack (absolute playback seconds in FULL, i.e. already stretched) ──
 
