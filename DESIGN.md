@@ -298,7 +298,7 @@ The one component that defines the system: a flat Tracing Panel outline, 1px Umb
 Top bar: Tracing Panel, hairline bottom, 18px gutters; brand at 15px/700 nearly full tracking; state file in mono with the 8px live dot. Side tabs: 12px text, 2px ink underline on the active tab, never a filled block; inspector sub-tabs are quiet 6px-radius chips with Warm Paper fill when active.
 
 ### Diagram chrome
-Everything drawn in the canvas is an annotation: solid Slate edges for real relationships, dashed Pencil-grey "uses" edges, dotted Network-Violet routes, active traced paths in accent with slow dash drift (paused under reduced motion), edge labels as plain mono text on the canvas (no bordered pill), and a dotted background. Selection and traces are crisp rings, never glows. Controls and minimap match button/card anatomy.
+Everything drawn in the canvas is an annotation: A **Key** chip on the tool row (6px radius, accent when open) expands an inline panel with the chrome shadow listing the node encodings — stripe/tag, the "~" estimate marker, access chips, dashed-virtual, severity stamp, change pills — each row rendered with the real component classes so the legend can't drift from the nodes. solid Slate edges for real relationships, dashed Pencil-grey "uses" edges, dotted Network-Violet routes, active traced paths in accent with slow dash drift (paused under reduced motion), edge labels as plain mono text on the canvas (no bordered pill), and a dotted background. Selection and traces are crisp rings, never glows. Controls and minimap match button/card anatomy.
 
 ## Do's and Don'ts
 
