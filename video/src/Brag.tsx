@@ -5,7 +5,7 @@
 
 import type { CSSProperties, ReactNode } from 'react';
 import { AbsoluteFill, Html5Audio, interpolate, interpolateColors, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
-import { at, ease, Shot, union } from './Shot.tsx';
+import { at, ease, placeOver, Shot, union } from './Shot.tsx';
 import { DOLLAR, FULL, HOOK, LOOP, MORPH, OUTRO, REVEAL, RISKS, STRETCH, WHATIF, type SceneName, type Timeline } from './brag-timeline.ts';
 
 export const BRAG_FPS = 30;
@@ -216,18 +216,24 @@ function HookTerminal({ t }: { t: number }) {
 // Shot's timeline units: 30 per timeline second, from the start of the shot's Sequence.
 const u = (sec: number) => sec * 30;
 
-/** The architecture: the whole page, then the traffic path as Data flow lights it up. */
+/** The architecture: the whole page, then a click on app-asg lights up the traffic path into it. */
 function RevealShot() {
-  const path = union(at('overview', 'internet'), at('flow', 'asg')); // Internet → web-alb → app-asg
+  const path = union(at('overview', 'internet'), at('overview', 'asg')); // Internet → web-alb → app-asg
+  const asg = at('overview', 'asg');
   return (
     <Shot
       w={VIEW.w}
       h={VIEW.h}
       pace={PACE}
-      images={[{ shot: 'overview', from: 0 }, { shot: 'flow', from: u(REVEAL.flow) }]}
+      // The flow shot was taken after the app zoomed in on a selection: placed over the overview, only the path and the ring change.
+      images={[{ shot: 'overview', from: 0 }, { shot: 'flow', from: u(REVEAL.flow), place: placeOver('overview', 'flow', 'alb', 'asg') }]}
       focus={[
         { from: 0, rect: null },
         { from: u(REVEAL.toPath), rect: { ...path, y: path.y - 60, h: path.h + 90 }, zoom: 2.3 },
+      ]}
+      cursor={[
+        { at: u(REVEAL.cursorIn), x: asg.x + asg.w + 40, y: asg.y + asg.h + 70 },
+        { at: u(REVEAL.flow), x: asg.x + asg.w * 0.55, y: asg.y + asg.h / 2, click: true },
       ]}
     />
   );

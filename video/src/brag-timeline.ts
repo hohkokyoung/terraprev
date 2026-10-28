@@ -50,8 +50,8 @@ export const HOOK = {
 /** The terminal glides from under the headline to the stage slot and becomes the browser. */
 export const MORPH = { from: 3.2, to: 3.9 };
 
-/** Seconds after the page appears: the camera moves straight onto the traffic path, which then lights up. */
-export const REVEAL = { toPath: 0.7, flow: 1.4 };
+/** Seconds after the page appears: the camera moves onto the traffic path, the cursor clicks app-asg, and the path lights up. */
+export const REVEAL = { toPath: 0.6, cursorIn: 1.0, flow: 1.6 };
 
 /** A click on app-db scopes the panel to it: the switch and its total, then quantity × unit price. */
 export const DOLLAR = { cursorIn: 0.2, click: 0.9, toHead: 1.1, toLines: 2.2 };
@@ -88,7 +88,7 @@ export function cues(tl: Timeline = FULL) {
       ...(s.reveal ? [tl.pageIn + REVEAL.flow] : []),
       ...(s.whatif ? [s.whatif[0] + WHATIF.tool, ...WHATIF.rows.map((r) => s.whatif![0] + r)] : []),
     ].map(at),
-    clicks: (s.dollar ? [s.dollar[0] + DOLLAR.click] : []).map(at),
+    clicks: [...(s.reveal ? [tl.pageIn + REVEAL.flow] : []), ...(s.dollar ? [s.dollar[0] + DOLLAR.click] : [])].map(at),
     /** Whooshes lead into these times. */
     cuts: Object.values(s).map(([a]) => a).filter((a) => a > 0).map(at),
     dropAt: at(s.reveal?.[0] ?? 0), // drums enter

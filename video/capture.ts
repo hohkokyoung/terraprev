@@ -58,7 +58,7 @@ await click(page, '.react-flow__controls-zoomout');
 
 const node = (label: string) => `xpath///div[contains(@class,"rnode")][.//span[@class="rnode__label" and text()="${label}"]]`;
 
-await shot('overview', { total: '.total', cost: '.side', canvas: '.canvas', db: node('app-db'), internet: '.rnode--internet', alb: node('web-alb'), stackbar: '.stackbar', legend: '.legend', costrows: '.costrows' });
+await shot('overview', { total: '.total', cost: '.side', canvas: '.canvas', db: node('app-db'), internet: '.rnode--internet', alb: node('web-alb'), asg: node('app-asg'), stackbar: '.stackbar', legend: '.legend', costrows: '.costrows' });
 
 // Close-up for the architecture beat: the app's own zoom renders the boxes larger and crisp, where
 // zooming the video into the overview would only magnify small text. Zoom steps are 1.2× about the
@@ -106,7 +106,7 @@ await shot('flow-0', { toggle: '.toggle--flow' });
 await click(page, '::-p-text(Data flow)');
 await shot('flow-1', { toggle: '.toggle--flow' });
 await click(page, node('app-asg'));
-await shot('flow', { asg: node('app-asg'), toggle: '.toggle--flow', paths: '.paths' });
+await shot('flow', { asg: node('app-asg'), internet: '.rnode--internet', alb: node('web-alb'), toggle: '.toggle--flow', paths: '.paths' });
 await click(page, '::-p-text(Data flow)');
 
 await click(page, '.rnode__chips');

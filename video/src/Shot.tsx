@@ -19,6 +19,13 @@ export function useT(pace = PACE) {
 }
 
 export const at = (shot: ShotName, key: string): Rect => (data.shots[shot] as Record<string, Rect>)[key];
+
+/** How to place `shot` over `base` so the two named elements land where they are in `base`. */
+export function placeOver(base: ShotName, shot: ShotName, a: string, b: string) {
+  const [pa, pb, qa, qb] = [at(base, a), at(base, b), at(shot, a), at(shot, b)];
+  const scale = (pb.x - pa.x) / (qb.x - qa.x);
+  return { scale, dx: pa.x - qa.x * scale, dy: pa.y - qa.y * scale };
+}
 export const union = (...rs: Rect[]): Rect => {
   const x = Math.min(...rs.map((r) => r.x));
   const y = Math.min(...rs.map((r) => r.y));
@@ -31,8 +38,11 @@ export interface ShotProps {
   /** Viewport size in px; the page fills it at zoom 1. */
   w: number;
   h: number;
-  /** Screenshots in order; each one cuts in at its time, like the UI reacting to a click. */
-  images: { shot: ShotName; from: number }[];
+  /**
+   * Screenshots in order; each one cuts in at its time, like the UI reacting to a click. `place` puts a
+   * shot taken at another zoom over the first one (page px: x' = x·scale + dx), so nothing jumps at the cut.
+   */
+  images: { shot: ShotName; from: number; place?: { scale: number; dx: number; dy: number } }[];
   /** Camera targets: null = whole page. Each move starts at its time; `cut` jumps there instead. */
   focus: { from: number; rect: Rect | null; zoom?: number; cut?: boolean }[];
   /** Cursor waypoints in page px; `click` shows a ripple on arrival. */
@@ -69,7 +79,14 @@ export function Shot({ w, h, images, focus, cursor, pace }: ShotProps) {
     <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, overflow: 'hidden', background: '#f4f2ec' }}>
       <div style={{ position: 'absolute', width: w, height: h, transformOrigin: '0 0', transform: `translate(${w / 2 - cam.cx * cam.s}px, ${h / 2 - cam.cy * cam.s}px) scale(${cam.s})` }}>
         {images.map((im) => (
-          <Img key={im.shot} src={staticFile(`shots/${im.shot}.png`)} style={{ position: 'absolute', inset: 0, width: w, height: h, opacity: f >= im.from ? 1 : 0 }} />
+          <Img
+            key={im.shot}
+            src={staticFile(`shots/${im.shot}.png`)}
+            style={{
+              position: 'absolute', left: 0, top: 0, width: w, height: h, opacity: f >= im.from ? 1 : 0,
+              ...(im.place && { transformOrigin: '0 0', transform: `translate(${im.place.dx * k}px, ${im.place.dy * k}px) scale(${im.place.scale})` }),
+            }}
+          />
         ))}
       </div>
       {cursor && <Cursor points={cursor} frame={f} toScreen={toScreen} size={Math.max(26, 38 * (w / 1920))} />}
