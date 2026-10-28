@@ -57,6 +57,16 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, diff, view, 
     deltas: new Map(diff?.nodes.filter((n) => Math.abs(n.delta) >= 0.005).map((n) => [n.id, n.delta])),
   }), [snapshot, diff]);
 
+  // A modal: focus moves in on open and back to whatever opened it on close; the app behind is inert.
+  const dialog = useRef<HTMLDivElement>(null);
+  // Read during the first render: once the app behind turns inert, the opener has already lost focus.
+  const [opener] = useState(() => document.activeElement as HTMLElement | null);
+  useEffect(() => {
+    dialog.current?.focus();
+    // Wait a frame: the app behind is still inert while this unmounts.
+    return () => { requestAnimationFrame(() => opener?.focus?.()); };
+  }, [opener]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -146,7 +156,7 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, diff, view, 
 
 
   return (
-    <div className="report" role="dialog" aria-label="Architecture & cost brief">
+    <div className="report" role="dialog" aria-modal="true" aria-label={diff?.kind === 'stacks' ? 'Architecture & cost comparison' : 'Architecture & cost brief'} ref={dialog} tabIndex={-1}>
       <div className="report__bar">
         <span className="report__barTitle">{diff?.kind === 'stacks' ? 'Architecture & cost comparison' : 'Architecture & cost brief'}</span>
         <span className="report__barHint muted small">Uses your current usage assumptions{freeTier ? ' and free tier' : ''}.</span>
@@ -246,7 +256,7 @@ export function ReportView({ snapshot, usage, freeTier, costByNode, diff, view, 
             {report.architecture.overview.map((o, i) => <li key={i}>{o}</li>)}
           </ul>
           <figure className="doc__figure">
-            <div ref={figRef} className="doc__diagram" style={{ height: figW ? Math.round(figW * FIGURE_RATIO) : undefined, aspectRatio: figW ? undefined : `1 / ${FIGURE_RATIO}` }}>
+            <div ref={figRef} className="doc__diagram" inert style={{ height: figW ? Math.round(figW * FIGURE_RATIO) : undefined, aspectRatio: figW ? undefined : `1 / ${FIGURE_RATIO}` }}>
               {figW > 0 && <ReactFlowProvider key={figW}>
                 <Diagram
                   nodes={figure.nodes}

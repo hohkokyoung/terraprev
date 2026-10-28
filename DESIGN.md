@@ -117,15 +117,15 @@ components:
     textColor: "{colors.ink-2}"
     padding: "0"
   chip-status:
-    backgroundColor: "{colors.bg}"
+    backgroundColor: "{colors.panel}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.sm}"
-    padding: "2px 6px"
+    rounded: "{rounded.xs}"
+    padding: "1px 5px"
     typography: "{typography.tag}"
   chip-overlay:
     textColor: "{colors.iam}"
-    rounded: "{rounded.md}"
-    padding: "3px 5px"
+    rounded: "{rounded.xs}"
+    padding: "2px 4px"
     typography: "{typography.tag}"
   card-panel:
     backgroundColor: "{colors.panel}"
@@ -156,7 +156,7 @@ The system is explicitly not the AWS Console (no inconsistent chrome, no buried 
 - One accent blue for the entire interface; nine fixed category hues used only as small identifiers.
 - 1px hairline borders and tonal layering carry structure; one shared soft shadow under floating chrome.
 - A single Inter type scale from 10 to 28px, tabular figures on every number, JetBrains Mono only for code and identifiers.
-- Small radii (3–12px); flat surfaces at rest; change and status carried by pills, stripes and labels, not color alone.
+- Small radii (3–8px); resources and boundaries drawn as flat 1px contours with no fills or shadows; change and status carried by worded tags, not color alone.
 - Light and dark are two prints of the same drawing: identical structure, swapped papers.
 
 ## Colors
@@ -167,14 +167,14 @@ The palette is drafting paper plus one mark-up pen: warm paper neutrals do the d
 - **Printing Blue** (`#1f6feb`): the only accent. Selection rings, links, active tab states, "current view" badges, cost bars in the brief, the trace highlight on the diagram, and focus rings. In the dark theme it lightens to a sky blue so it keeps the same contrast against night paper.
 
 ### Status
-Used as small pills and left stripes next to words, never as the only signal (WCAG 2.2 AA):
+Used as small outlined tags next to words, never as the only signal (WCAG 2.2 AA):
 - **Check Green** (`#2f8f4e`): monthly ok / fixed items, statements Allow (in dark tint backgrounds).
 - **Annotation Ochre** (`#b5651d`): warnings and findings, "changed" deltas, slider caution, plan-preview banner.
 - **Revision Red** (`#c2382f`): errors, "removed/destroyed", deny statements, high-severity findings.
 - **Apply Green** (`#36b46b`): the transient just-applied pulse in the diagram and banner; deliberately brighter than Check Green and used only for the moment after apply.
 
 ### Category hues
-Nine fixed hues, one per AWS resource category, used as a 4px node stripe, small tinted tag, legend dot or cost bar — never as a surface fill: **Computer Amber** (`#e07b2c`), **Database Blue** (`#3567d1`), **Storage Leaf** (`#3b9254`), **Network Violet** (`#7a5cc7`), **Integration Rose** (`#cc3f73`), **API Teal** (`#188e9b`), **Security Rust** (`#c4473a`), **Monitoring Brass** (`#b98a10`), **Unclassified Grey** (`#6b6e75`). Network Violet doubles as the VPC boundary stroke and dotted route-line color.
+Nine fixed hues, one per AWS resource category, used as the 1px outline around a node's type code, a legend dot or a cost bar — never as a surface fill or a side stripe: **Computer Amber** (`#e07b2c`), **Database Blue** (`#3567d1`), **Storage Leaf** (`#3b9254`), **Network Violet** (`#7a5cc7`), **Integration Rose** (`#cc3f73`), **API Teal** (`#188e9b`), **Security Rust** (`#c4473a`), **Monitoring Brass** (`#b98a10`), **Unclassified Grey** (`#6b6e75`). Network Violet doubles as the VPC boundary stroke and dotted route-line color.
 
 ### Overlay hues
 - **IAM Rust** (`#c4473a`) and **Security Violet** (`#7a5cc7`): the IAM / security-group chips clipped to node bottom edges; Security Violet reuses Network Violet so firewalls read as network-domain objects.
@@ -196,7 +196,7 @@ HCL blocks get their own fixed six-color assignment (Comment `#8a8c92`, String `
 ### Named Rules (optional, powerful)
 **The One Voice Rule.** Printing Blue is the only accent. It points: selection, links, active state, live attention. It never tints a surface wider than a banner, and no second accent exists.
 **The Labeled-Color Rule.** A color never carries meaning alone. Status and change states always ride with words (pills, keys, captions); the hue is a second reading of the same text.
-**The Stamped-ID Rule.** Category and overlay hues are small stamps — a 4px stripe, a tag, a dot, a bar. They identify; they never decorate or fill panels.
+**The Stamped-ID Rule.** Category and overlay hues are small stamps — the outline of a type code, a dot, a bar, colored tag text. They identify; they never decorate, fill panels, or run down a card's edge.
 
 ## Typography
 
@@ -226,7 +226,7 @@ HCL blocks get their own fixed six-color assignment (Comment `#8a8c92`, String `
 
 ## Layout
 
-One app shell: a fixed top bar (brand · state-file picker · compare pickers · right-aligned monthly total · controls) over a two-column drawing table — the diagram canvas fills the left fraction of a `1fr / 380px` grid, and the right panel of stacked bordered sections holds costs, findings, access and the HCL inspector. Sections inside the panel step down with 1px rules and 14/16px padding; the canvas carries its own floating tool row (overlays with the shared shadow). The brief (`report`) is a fixed 880px-max paper sheet centered on the page.
+One app shell: a fixed top bar (brand · state-file picker · compare pickers · right-aligned monthly total · controls) over a two-column drawing table — the diagram canvas fills the left fraction of a `1fr / 380px` grid, and the right panel of stacked bordered sections holds costs, findings, access and the HCL inspector. Sections inside the panel step down with 1px rules and 14/16px padding; the canvas carries its own tool row: flat, outlined controls laid over the drawing, no shadows. The brief (`report`) is a fixed 880px-max paper sheet centered on the page.
 
 Density is deliberate: rows step tightly (2px gaps in cost lists, 8px in tables), and services share screen happily. Motion is limited to state responses (see motion tokens); the page never animates for show.
 
@@ -242,10 +242,10 @@ The diagram PDF is one fixed A4-landscape sheet (1123×794px) in the current the
 
 ## Elevation & Depth
 
-The system is flat by default and layered by tone. Depth reads as three paper steps — **Warm Paper** (page) behind **Drafting Canvas** (diagram) behind **Tracing Panel** (chrome and cards) — then hairlines decide which contour is which. A single soft shadow, the same one everywhere, lifts only the chrome that floats above the drawing: node cards, toolbar chips, scrollbars' neighbors, menus. Shadows never mark hierarchy between panels, never scale up on hover as decoration, and are removed entirely in print/PDF (they render as grey boxes) and in removed-state nodes.
+The system is flat by default and layered by tone. Depth reads as three paper steps — **Warm Paper** (page) behind **Drafting Canvas** (diagram) behind **Tracing Panel** (chrome and cards) — then hairlines decide which contour is which. Only dropdown menus lift off the page. Everything else, the canvas tool row, zoom controls, minimap, side panel and every drawn element (resources, boundaries, tags), is flat linework with a 1px contour. Shadows never mark hierarchy between panels, never scale up on hover as decoration, and are removed entirely in print/PDF (they render as grey boxes) and in removed-state nodes.
 
 ### Shadow Vocabulary (if applicable)
-- **Floating chrome** (`box-shadow: 0 1px 2px rgb(30 25 10 / 0.06), 0 2px 8px rgb(30 25 10 / 0.05)`): the one shadow — every floating control and node card shares it.
+- **Floating chrome** (`box-shadow: 0 1px 2px rgb(30 25 10 / 0.06), 0 2px 8px rgb(30 25 10 / 0.05)`): kept as a token, used only inside the menu lift below. Controls and nodes do not take it.
 - **Dark paper chrome** (`0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.25)`): the same token re-balanced for dark paper.
 - **Menu lift** (`0 12px 32px rgb(0 0 0 / 0.28)`, combined with floating chrome): overlay dropdowns only.
 - **State ring** (`0 0 0 2px <accent or status color at 30–55% mix>`, combined with floating chrome): selected / just-changed states; it replaces, not stacks with, other rings.
@@ -257,18 +257,18 @@ The system is flat by default and layered by tone. Depth reads as three paper st
 
 ## Shapes
 
-The form language is drafting-simple: small radii, drawn contours, one crop geography. Radii run on a 3–12px scale — 3px for tiny edge labels and code chips, 5px for tags and sub-controls, 6px as the default for buttons/inputs/toolbars, 8px for cards, panels and dropdowns, 12px for large diagram group containers, and a true pill (24px+) only for a few special silhouettes: the "internet" cloud and the scroll thumb.
+The form language is drafting-simple: small radii, drawn contours, one crop geography. Radii run on a 3–8px scale — 3px for every drawn diagram element (resource nodes, type codes, IAM/SG strips, finding and change tags, subnets), 4px for VPC and cloud boundaries, 5px for sub-controls, 6px as the default for buttons/inputs/toolbars, 8px for panels and dropdowns, and a true pill (24px+) only for a few special silhouettes: the "internet" cloud and the scroll thumb.
 
-Borders are functional annotations: resource nodes carry a 1px contour plus a **4px left stripe** in their category hue — the drawing's piece stamp — while virtual/dashed borders consistently mean "not a real resource" (router groups, removed or replaced nodes in plan mode). Dots, tabs and controls are circles or simple rectangles; there is no asymmetric corner logic and no clipping beyond `overflow: hidden` on the diagram.
+Borders are functional annotations: resource nodes carry one even 1px contour, and their category hue appears only as the outline of the type code inside — the drawing's piece stamp — while virtual/dashed borders consistently mean "not a real resource" (router groups, launched instances, removed or replaced nodes in plan mode). Boundaries (cloud, VPC, subnet) are lines only, never tinted fills; public and private subnets differ by line color and label. Dots, tabs and controls are circles or simple rectangles; there is no asymmetric corner logic and no clipping beyond `overflow: hidden` on the diagram.
 
 ### Named Rules (optional)
-**The Category-Stripe Rule.** Every diagram resource identifies its category by a 4px left stripe, matching tag text, cost bar, and legend dot in the same hue. Keep the stripe solid even when the rest of the border goes dashed.
+**The Category-Outline Rule.** Every diagram resource identifies its category by the 1px outline of its type code (`EC2`, `ALB`), matching the cost bar and legend dot in the same hue. No side stripes: a thick colored edge on a rounded card is the generic dashboard tell, and it breaks at the corners.
 **The Dashed-Means-Virtual Rule.** A dashed contour always means "not solid": virtual (router) nodes, removed/replaced resources, or a live-attention frame. It never means decorative variety.
 
 ## Components
 
 ### Resource node (signature)
-The one component that defines the system: a Tracing Panel card, 1px Umber contour, 4px category stripe left, 6–8px padding, small radius (8px). Inside: a 28×34px tinted category tag (14%-mix background, category-hued bold 10px text), an Inter 12px/600 label with mono 10px hint below, and a right-aligned tabular cost chip on Warm Paper. States: hover warms the contour toward the category hue; selection is a 2px Printing Blue ring; a fresh apply breathes the Apply Green pulse three times; removed lines cross out their label and ghost to 60%.
+The one component that defines the system: a flat Tracing Panel outline, 1px Umber contour, 3px radius, no shadow, 8–10px padding. Inside: a 24×34px type code (mono 10px/600 ink, 1px outline in the category hue), an Inter 12px/600 label with mono 10px hint below, and a right-aligned tabular cost figure with no chip behind it. IAM/SG and finding tags sit flat on the bottom edge (3px radius, no shadow). States: hover darkens the contour to Slate Ink; selection is a 2px Printing Blue ring; a fresh apply breathes the Apply Green pulse three times; removed lines cross out their label and ghost to 60%.
 
 ### Buttons
 - **Shape:** rectangle, 6px radius, 1px Umber contour on Tracing Panel.
@@ -277,14 +277,14 @@ The one component that defines the system: a Tracing Panel card, 1px Umber conto
 - **Ghost/text:** the "linkish" button — no border, Printing Blue text, underlines on hover.
 
 ### Chips
-- **Status pills** (change/mode/severity): 10px/700 uppercase tag type, 2–3px × 5–7px padding, 3–4px radius, hue at 12–14% mix over paper behind same-hue text.
-- **IAM/SG chips:** 10px/700, 6px radius, clipped onto the node's bottom edge strip; caret opens the attached popover; open/hover contour goes Printing Blue.
-- **Toggle chips** (canvas toolbar): quiet button anatomy, 6px radius, shadow, "on" state takes Printing Blue border + text.
+- **Status tags** (change/mode/severity): 10px/700 uppercase tag type, 1–2px × 5–6px padding, 3px radius, a 1px outline in the hue with same-hue text on paper. Only High severity is a solid fill (white on Revision Red): the one loud stamp. No tinted pill backgrounds.
+- **IAM/SG chips:** 10px/700 colored text with no fill, in one flat 3px-radius strip clipped onto the node's bottom edge; caret opens the attached popover; open/hover contour goes Printing Blue.
+- **Toggle chips** (canvas toolbar): flat, 1px Umber contour, 3px radius, no shadow; "on" state takes Printing Blue border + text.
 
 ### Cards / Containers
-- **Corner Style:** 8px (panels, menus, brief sheet), 6px for KPI tiles and HCL blocks, 12px for group containers.
-- **Background:** Tracing Panel; KPI tiles on Warm Paper.
-- **Shadow Strategy:** floating chrome only; side-panel sections are flat and separated by hairlines.
+- **Corner Style:** 8px for menus, 6px for HCL blocks and buttons, 3px for the brief sheet, notes and every drawn or floating canvas element, 4px for diagram boundaries.
+- **Background:** Tracing Panel. KPI figures are not tiles: each sits under a 1px ink rule, like a dimension on a drawing. Report findings are rows separated by hairlines, never stripe-edged cards.
+- **Shadow Strategy:** none, except dropdown menus; side-panel sections are flat and separated by hairlines.
 - **Border:** 1px Sand internally, Umber when adjoining the canvas.
 - **Internal Padding:** 16px (sections), 12–14px (findings, KPI), 48/56px (brief sheet on screen).
 
@@ -298,15 +298,15 @@ The one component that defines the system: a Tracing Panel card, 1px Umber conto
 Top bar: Tracing Panel, hairline bottom, 18px gutters; brand at 15px/700 nearly full tracking; state file in mono with the 8px live dot. Side tabs: 12px text, 2px ink underline on the active tab, never a filled block; inspector sub-tabs are quiet 6px-radius chips with Warm Paper fill when active.
 
 ### Diagram chrome
-Everything drawn in the canvas is an annotation: solid Slate edges for real relationships, dashed Pencil-grey "uses" edges, dotted Network-Violet routes, active traced paths in accent with slow dash drift (paused under reduced motion), and a 1px-labeled dotted background. Controls and minimap match button/card anatomy.
+Everything drawn in the canvas is an annotation: solid Slate edges for real relationships, dashed Pencil-grey "uses" edges, dotted Network-Violet routes, active traced paths in accent with slow dash drift (paused under reduced motion), edge labels as plain mono text on the canvas (no bordered pill), and a dotted background. Selection and traces are crisp rings, never glows. Controls and minimap match button/card anatomy.
 
 ## Do's and Don'ts
 
 ### Do:
 - **Do** keep every number in tabular figures, right-aligned where columns meet, with the quantity × price × source one mono line below (`font-size` 10–11px).
 - **Do** state the unknown: "not priced" as text in muted ink, never a bold $0.00, never blank.
-- **Do** use the 4px category stripe + tinted tag as the identity kit for any new resource kind before inventing any new color.
-- **Do** draw all structure with 1px hairlines and floating chrome shadows; strip both from print output.
+- **Do** use the category-outlined type code as the identity kit for any new resource kind before inventing any new color.
+- **Do** draw all structure with 1px hairlines; keep shadows to dropdown menus; strip shadows from print output.
 - **Do** keep dark mode a re-papering of the same drawing — identical structure, hue, spacing (only papers/shadows vary).
 - **Do** respect `prefers-reduced-motion`: pause dash animations and pulses, keep state changes readable through color and shape.
 

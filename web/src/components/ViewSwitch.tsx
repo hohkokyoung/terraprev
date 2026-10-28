@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { isPlanPath, type StackFile, type StackFiles, type View } from '../lib/useView.ts';
 
 interface Props {
@@ -17,6 +17,8 @@ interface Item {
 interface Section {
   title?: string;
   items: Item[];
+  /** Shown under the section, e.g. how to add the first item. */
+  note?: ReactNode;
 }
 
 /**
@@ -34,7 +36,18 @@ export function ViewSwitch({ view, setView, files, onOpen }: Props) {
 
   const shown = find(view.show);
   const against = view.against ? find(view.against) : undefined;
-  const showSections: Section[] = [{ title: plans.length ? 'Stacks' : undefined, items: stacks }, ...(plans.length ? [{ title: 'Plans', items: plans }] : [])];
+  const showSections: Section[] = [
+    { title: 'Stacks', items: stacks },
+    plans.length
+      ? { title: 'Plans', items: plans }
+      : {
+          title: 'Plans',
+          items: [],
+          note: files && (
+            <>No plans in this folder yet. Run <code>terraform plan -out=plan.out</code> there and it shows up here, priced against the stack as it is now.</>
+          ),
+        },
+  ];
   const againstSections: Section[] = [
     { items: [{ value: '', label: 'No comparison', sub: `just ${shown.label}` }] },
     { title: 'Compare with', items: stacks.filter((s) => s.value !== view.show) },
@@ -94,6 +107,9 @@ function Menu({ label, sections, value, ghost, onOpen, onPick, children }: {
   const [active, setActive] = useState(0);
   const root = useRef<HTMLDivElement>(null);
   const items = sections.flatMap((s) => s.items);
+  // Select-only combobox: focus stays on the button, which names the highlighted option for screen readers.
+  const listId = useId();
+  const optionId = (i: number) => `${listId}-opt-${i}`;
 
   useEffect(() => {
     if (!open) return;
@@ -132,23 +148,35 @@ function Menu({ label, sections, value, ghost, onOpen, onPick, children }: {
   let n = -1;
   return (
     <div className={`filemenu ${open ? 'is-open' : ''} ${ghost ? 'is-ghost' : ''}`} ref={root} onKeyDown={onKey}>
-      <button type="button" className="filemenu__button" aria-haspopup="listbox" aria-expanded={open} aria-label={label} onClick={() => (open ? setOpen(false) : show())}>
+      <button
+        type="button"
+        className="filemenu__button"
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        aria-activedescendant={open && items[active] ? optionId(active) : undefined}
+        aria-label={label}
+        onClick={() => (open ? setOpen(false) : show())}
+      >
         {children}
         <svg className="filemenu__chevron" width="10" height="10" viewBox="0 0 10 10" aria-hidden>
           <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
       {open && (
-        <div className="filemenu__list" role="listbox" aria-label={label}>
+        <div className="filemenu__list" role="listbox" id={listId} aria-label={label}>
           {sections.map((s, si) =>
-            s.items.length === 0 ? null : (
+            s.items.length === 0 && !s.note ? null : (
               <div key={si} className="filemenu__section">
                 {s.title && <div className="filemenu__title">{s.title}</div>}
+                {s.items.length === 0 && s.note && <p className="filemenu__note">{s.note}</p>}
                 {s.items.map((o) => {
                   const i = ++n;
                   return (
                     <div
                       key={o.value || '-'}
+                      id={optionId(i)}
                       role="option"
                       aria-selected={o.value === value}
                       className={`filemenu__item ${i === active ? 'is-active' : ''}`}

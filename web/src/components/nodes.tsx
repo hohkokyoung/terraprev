@@ -6,6 +6,7 @@ import { categoryVar } from '../lib/categories.ts';
 import { awsName } from '../../../shared/awsNames.ts';
 import type { FlowNodeData } from '../lib/layout.ts';
 import { formatDelta } from '../../../shared/compare.ts';
+import { SEVERITY_LABEL } from '../../../shared/report.ts';
 
 type FlowNode = Node<FlowNodeData>;
 
@@ -13,7 +14,7 @@ const TAGS: Record<string, string> = { internet: '⇄' };
 const CHANGE_TAG = { added: '+', changed: '~', replaced: '±', removed: '−' } as const;
 
 export function ResourceNode({ data, selected }: NodeProps<FlowNode>) {
-  const { node, monthly, hasUsage, fresh, expanded, revealed, traced, change, delta } = data;
+  const { node, monthly, hasUsage, fresh, expanded, revealed, traced, change, delta, findings, dataLoss } = data;
   const toggle = useContext(ExpandContext);
   const roles = node.access?.roles.length ?? 0;
   const sgs = node.access?.securityGroups.length ?? 0;
@@ -21,7 +22,7 @@ export function ResourceNode({ data, selected }: NodeProps<FlowNode>) {
   const hint = node.details[0]?.[1];
   return (
     <div
-      className={['rnode', node.virtual && 'rnode--virtual', node.supporting && 'rnode--supporting', selected && 'is-selected', fresh && 'is-fresh', revealed && 'is-revealed', traced && `is-traced-${traced}`, change && `is-${change}`, node.type === 'internet' && 'rnode--internet']
+      className={['rnode', node.virtual && 'rnode--virtual', node.supporting && 'rnode--supporting', selected && 'is-selected', fresh && 'is-fresh', revealed && 'is-revealed', traced && `is-traced-${traced}`, change && `is-${change}`, dataLoss && 'is-dataloss', node.type === 'internet' && 'rnode--internet']
         .filter(Boolean)
         .join(' ')}
       style={{ ['--cat' as string]: categoryVar(node.category) }}
@@ -44,6 +45,13 @@ export function ResourceNode({ data, selected }: NodeProps<FlowNode>) {
         <span className={`rnode__change chg chg--${change}`} title={delta ? `${formatDelta(delta)}/month` : undefined}>
           {CHANGE_TAG[change]}
           {delta !== undefined && Math.abs(delta) >= 0.005 && <b>{formatDelta(delta)}</b>}
+          {dataLoss && <em>Data loss</em>}
+        </span>
+      )}
+      {findings && (
+        <span className={`rnode__finding sev sev--${findings.worst}`} title={`${findings.summary}. Select to see them.`}>
+          {SEVERITY_LABEL[findings.worst]}
+          {findings.count > 1 && <b>+{findings.count - 1}</b>}
         </span>
       )}
       {(roles > 0 || sgs > 0) && (

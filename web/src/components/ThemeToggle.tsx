@@ -32,7 +32,7 @@ export function ThemeToggle() {
     <div className="themetoggle" role="group" aria-label="Color theme">
       {(['light', 'system', 'dark'] as const).map((t) => (
         <button key={t} type="button" aria-pressed={theme === t} onClick={() => setTheme(t)}>
-          {t === 'light' ? '☀ Light' : t === 'dark' ? '☾ Dark' : 'Auto'}
+          {t === 'light' ? <><span aria-hidden>☀ </span>Light</> : t === 'dark' ? <><span aria-hidden>☾ </span>Dark</> : 'Auto'}
         </button>
       ))}
     </div>

@@ -10,12 +10,15 @@ import { UsageSlider } from './components/UsageSlider.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 import { ReportView } from './components/ReportView.tsx';
 import { ChangesPanel, deltaClass } from './components/ChangesPanel.tsx';
+import { FindingsPanel } from './components/FindingsPanel.tsx';
+import { bySeverity, isIssue, issuesByNode } from './lib/findings.ts';
+import { losesData } from './lib/dataLoss.ts';
 import { STATIC } from './lib/staticData.ts';
 import { isLiveOnly, isPlanPath, LIVE, useView } from './lib/useView.ts';
 import { ViewSwitch } from './components/ViewSwitch.tsx';
 import { diffSnapshots, diffSummary, formatDelta, gapText } from '../../shared/compare.ts';
 
-type Tab = 'changes' | 'cost' | 'usage' | 'inspect';
+type Tab = 'changes' | 'cost' | 'findings' | 'usage' | 'inspect';
 
 /** Plan preview or stack comparison, embedded by `terraprev build --plan / --compare`. */
 const COMPARE = STATIC?.compare;
@@ -133,6 +136,7 @@ export function App() {
   const ghostEdges = useMemo(() => new Set(diff?.ghosts.edges.map((e) => e.id)), [diff]);
   const deltas = useMemo(() => new Map(diff?.nodes.filter((n) => Math.abs(n.delta) >= 0.005).map((n) => [n.id, n.delta])), [diff]);
   const homeTab: Tab = diff ? 'changes' : 'cost';
+  const tabOrder: Tab[] = diff ? ['changes', 'cost', 'findings', 'usage', 'inspect'] : ['cost', 'findings', 'usage', 'inspect'];
   // Switching view lands on what that view is about: the differences or changes, or the cost when live.
   useEffect(() => {
     if (STATIC) return;
@@ -152,10 +156,19 @@ export function App() {
   const loading = snapshot?.cost.status === 'loading';
   const downloads = Object.values(progress).filter((p) => !p.done);
   const nodeById = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
+  const insights = snapshot?.insights;
+  const nodeFindings = useMemo(() => issuesByNode(insights ?? []), [insights]);
+  const dataLoss = useMemo(
+    () => new Set(diff?.kind === 'plan' ? diff.nodes.filter((n) => losesData(n.change, nodeById.get(n.id)?.type)).map((n) => n.id) : []),
+    [diff, nodeById],
+  );
+  const issueCount = insights?.filter(isIssue).length ?? 0;
+  const highCount = insights?.filter((f) => f.severity === 'high').length ?? 0;
 
   return (
     <div className={`app ${printing ? 'is-printing' : ''} ${compare?.kind === 'stacks' ? 'app--stacks' : ''}`}>
-      <header className="topbar">
+      <a className="skiplink" href="#sidepanel">Skip to side panel</a>
+      <header className="topbar" inert={reportOpen || undefined}>
         <div className="brand">
           <span className="brand__mark" aria-hidden>
             ◧
@@ -163,7 +176,7 @@ export function App() {
           terraprev
         </div>
         <div className="statefile" title={snapshot?.stateFile}>
-          <span className={`dot dot--${error ? 'error' : connection}`} />
+          <span className={`dot dot--${error ? 'error' : connection}`} role="img" aria-label={error ? 'Connection error' : connection === 'live' ? 'Live: updates on every apply' : `Connection: ${connection}`} title={error ? 'Connection error' : connection === 'live' ? 'Live: updates on every apply' : `Connection: ${connection}`} />
           {!STATIC && liveSnapshot && <ViewSwitch view={views.view} setView={views.setView} files={views.files} onOpen={views.refreshFiles} />}
           {snapshot && compare && !STATIC ? null : snapshot && compare ? (
             <>
@@ -235,7 +248,7 @@ export function App() {
         )}
       </header>
 
-      {error && <div className="banner banner--error">{error}</div>}
+      {error && <div className="banner banner--error" role="alert">{error}</div>}
       {views.error && (
         <div className="banner banner--error">
           Could not {isPlanPath(views.view.show) ? 'read that plan' : views.view.against ? 'compare those stacks' : 'read that stack'}: {views.error}{' '}
@@ -243,7 +256,7 @@ export function App() {
         </div>
       )}
       {viewPending && !views.error && (
-        <div className="banner">{isPlanPath(views.view.show) ? 'Reading and pricing the plan…' : 'Reading and pricing the stack…'}</div>
+        <div className="banner" role="status">{isPlanPath(views.view.show) ? 'Reading and pricing the plan…' : 'Reading and pricing the stack…'}</div>
       )}
       {diff && (
         <div className="banner banner--plan">
@@ -258,40 +271,15 @@ export function App() {
         </div>
       )}
       {lastApply && Date.now() - lastApply.at < 15000 && (
-        <div className="banner banner--apply" key={lastApply.at}>
+        <div className="banner banner--apply" key={lastApply.at} role="status">
           Applied · serial {lastApply.prevSerial} → {lastApply.serial}
           {lastApply.added.length > 0 && <span className="plus"> +{lastApply.added.length} added</span>}
           {lastApply.removed.length > 0 && <span className="minus"> −{lastApply.removed.length} removed</span>}
         </div>
       )}
 
-      <main className={`main ${sideOpen ? '' : 'main--noside'}`}>
+      <main className={`main ${sideOpen ? '' : 'main--noside'}`} inert={reportOpen || undefined}>
         <div className="canvas">
-          {snapshot ? (
-            <ReactFlowProvider>
-              <Diagram
-                nodes={nodes}
-                edges={edges}
-                showSupporting={showSupporting}
-                showDeps={showDeps}
-                expanded={expanded}
-                onToggleExpand={toggleExpand}
-                flowMode={flowMode}
-                fitSignal={`${sideOpen}:${printing}`}
-                pageSize={printing ? PAGE : undefined}
-                costByNode={totals.byNode}
-                components={snapshot.cost.components}
-                fresh={fresh}
-                changes={diff?.status}
-                deltas={deltas}
-                ghostEdges={ghostEdges}
-                selected={selected}
-                onSelect={select}
-              />
-            </ReactFlowProvider>
-          ) : (
-            <Empty connection={connection} />
-          )}
           <div className="canvas__tools">
             <label className="toggle">
               <input type="checkbox" checked={showSupporting} onChange={(e) => setShowSupporting(e.target.checked)} />
@@ -320,6 +308,33 @@ export function App() {
               <li className="k-route">route</li>
             </ul>
           </div>
+          {snapshot ? (
+            <ReactFlowProvider>
+              <Diagram
+                nodes={nodes}
+                edges={edges}
+                showSupporting={showSupporting}
+                showDeps={showDeps}
+                expanded={expanded}
+                onToggleExpand={toggleExpand}
+                flowMode={flowMode}
+                fitSignal={`${sideOpen}:${printing}`}
+                pageSize={printing ? PAGE : undefined}
+                costByNode={totals.byNode}
+                components={snapshot.cost.components}
+                fresh={fresh}
+                changes={diff?.status}
+                deltas={deltas}
+                ghostEdges={ghostEdges}
+                findings={nodeFindings}
+                dataLoss={dataLoss}
+                selected={selected}
+                onSelect={select}
+              />
+            </ReactFlowProvider>
+          ) : (
+            <Empty connection={connection} />
+          )}
         </div>
 
         <button
@@ -332,21 +347,37 @@ export function App() {
         >
           {sideOpen ? '›' : '‹'}
         </button>
-        <aside className="side" hidden={!sideOpen}>
-          <nav className="tabs" role="tablist">
-            {((diff ? ['changes', 'cost', 'usage', 'inspect'] : ['cost', 'usage', 'inspect']) as Tab[]).map((t) => (
-              <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'is-on' : ''} onClick={() => setTab(t)} disabled={t === 'inspect' && !selectedNode}>
-                {t === 'changes' ? `${diff?.kind === 'stacks' ? 'Differences' : 'Changes'} (${diff?.nodes.filter((n) => !n.group && !n.supporting).length ?? 0})` : t === 'cost' ? 'Cost' : t === 'usage' ? `Usage${snapshot ? ` (${snapshot.cost.usage.length})` : ''}` : selectedNode ? 'Resource' : 'Resource'}
+        <aside className="side" id="sidepanel" tabIndex={-1} aria-label="Costs, findings and resource details" hidden={!sideOpen}>
+          <nav className="tabs" role="tablist" aria-label="Side panel" onKeyDown={(e) => {
+            // Arrow keys move between tabs; only the current tab is in the Tab order.
+            const order = tabOrder.filter((t) => t !== 'inspect' || selectedNode);
+            const i = order.indexOf(tab);
+            const next = e.key === 'ArrowRight' ? order[(i + 1) % order.length] : e.key === 'ArrowLeft' ? order[(i - 1 + order.length) % order.length] : e.key === 'Home' ? order[0] : e.key === 'End' ? order[order.length - 1] : undefined;
+            if (!next) return;
+            e.preventDefault();
+            setTab(next);
+            document.getElementById(`tab-${next}`)?.focus();
+          }}>
+            {tabOrder.map((t) => (
+              <button key={t} id={`tab-${t}`} role="tab" aria-selected={tab === t} aria-controls="sidepanel-body" tabIndex={tab === t ? 0 : -1} className={tab === t ? 'is-on' : ''} onClick={() => setTab(t)} disabled={t === 'inspect' && !selectedNode}>
+                {t === 'changes' ? `${diff?.kind === 'stacks' ? 'Differences' : 'Changes'} (${diff?.nodes.filter((n) => !n.group && !n.supporting).length ?? 0})` : t === 'cost' ? 'Cost' : t === 'findings' ? (
+                  <>
+                    Findings{snapshot ? ` (${issueCount})` : ''}
+                    {highCount > 0 && <span className="sev sev--high tabs__flag">High {highCount}</span>}
+                  </>
+                ) : t === 'usage' ? `Usage${snapshot ? ` (${snapshot.cost.usage.length})` : ''}` : 'Resource'}
               </button>
             ))}
           </nav>
-          <div className="side__body">
+          <div className="side__body" id="sidepanel-body" role="tabpanel" aria-labelledby={`tab-${tab}`} tabIndex={-1}>
             {!snapshot ? null : loading && !snapshot.cost.components.length ? (
               <p className="muted pad">Fetching AWS prices…</p>
             ) : tab === 'changes' && diff ? (
-              <ChangesPanel diff={diff} onSelect={select} />
+              <ChangesPanel diff={diff} nodesById={nodeById} onSelect={select} />
+            ) : tab === 'findings' ? (
+              <FindingsPanel insights={snapshot.insights} nodesById={nodeById} onSelect={select} />
             ) : tab === 'inspect' && selectedNode ? (
-              <Inspector change={diff?.nodes.find((n) => n.id === selectedNode.id)} compare={diff} freeTier={freeTier} edges={edges} nodesById={nodeById} lines={lines} node={selectedNode} cost={snapshot.cost} values={values} overrides={overrides} setUsage={set} expanded={expanded.has(selectedNode.id)} onToggleExpand={() => toggleExpand(selectedNode.id)} onSelect={select} stateSerial={snapshot.serial} />
+              <Inspector findings={snapshot.insights.filter((f) => f.nodes.includes(selectedNode.id)).sort(bySeverity)} change={diff?.nodes.find((n) => n.id === selectedNode.id)} compare={diff} freeTier={freeTier} edges={edges} nodesById={nodeById} lines={lines} node={selectedNode} cost={snapshot.cost} values={values} overrides={overrides} setUsage={set} expanded={expanded.has(selectedNode.id)} onToggleExpand={() => toggleExpand(selectedNode.id)} onSelect={select} stateSerial={snapshot.serial} />
             ) : tab === 'usage' ? (
               <div className="usagelist">
                 <p className="muted small">

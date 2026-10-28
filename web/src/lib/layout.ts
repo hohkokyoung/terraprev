@@ -1,3 +1,4 @@
+import type { NodeFindings } from './findings.ts';
 import ELK, { type ElkNode, type ElkExtendedEdge, type ElkPoint } from 'elkjs/lib/elk.bundled.js';
 import { Position, type Edge, type Node } from '@xyflow/react';
 import type { GraphEdge, GraphNode } from '../../../shared/types.ts';
@@ -15,6 +16,10 @@ export type FlowNodeData = {
   node: GraphNode; monthly?: number; hasUsage: boolean; fresh: boolean; expanded?: boolean; revealed?: boolean; traced?: 'target' | 'source' | 'off';
   /** Plan preview / comparison: what happens to this node, and its monthly cost change. */
   change?: NodeChange; delta?: number;
+  /** Open findings on this resource (live app only). */
+  findings?: NodeFindings;
+  /** Plan preview: destroying or replacing this loses stored data. */
+  dataLoss?: boolean;
 };
 export type FlowEdgeData = { kind: GraphEdge['kind']; points?: ElkPoint[]; labelPos?: ElkPoint };
 

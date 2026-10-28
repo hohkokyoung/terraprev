@@ -2,6 +2,24 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "PORT=4610 exec node server/src/cli/dev.ts"
+      ],
+      "port": 4600
+    },
+    {
+      "name": "planlab",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "PORT=4610 TERRAPREV_STATE=/private/tmp/claude-501/-Users-hohkokyoung-Projects-terraprev/592bc441-bc66-4308-97b1-e782eae7d0a6/scratchpad/planlab/terraform.tfstate exec node server/src/cli/dev.ts"
+      ],
+      "port": 4600
+    },
+    {
       "name": "demo",
       "runtimeExecutable": "node",
       "runtimeArgs": [

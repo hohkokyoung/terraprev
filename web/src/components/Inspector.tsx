@@ -1,4 +1,5 @@
-import type { CostComponent, CostReport, GraphEdge, GraphNode, NodeAccess } from '../../../shared/types.ts';
+import type { CostComponent, CostReport, GraphEdge, GraphNode, Insight, NodeAccess } from '../../../shared/types.ts';
+import { FindingRow } from './FindingsPanel.tsx';
 import { pathsInto } from '../../../shared/flow.ts';
 import { componentQuantity, formatQuantity, formatUnitPrice, formatUsd, prettyUnit, type LineCost } from '../../../shared/cost.ts';
 import { CATEGORY_LABEL, categoryVar } from '../lib/categories.ts';
@@ -30,9 +31,11 @@ interface Props {
   change?: NodeDiff;
   compare?: Pick<Diff, 'kind' | 'baseLabel' | 'targetLabel'>;
   freeTier: boolean;
+  /** Findings about this resource, worst first (strengths last). */
+  findings: Insight[];
 }
 
-export function Inspector({ node, cost, values, overrides, setUsage, expanded, onToggleExpand, onSelect, stateSerial, lines, edges, nodesById, change, compare, freeTier }: Props) {
+export function Inspector({ findings, node, cost, values, overrides, setUsage, expanded, onToggleExpand, onSelect, stateSerial, lines, edges, nodesById, change, compare, freeTier }: Props) {
   const [view, setView] = useState<'overview' | 'terraform'>('overview');
   const components = cost.components.filter((c) => c.nodeId === node.id);
   const params = cost.usage.filter((p) => p.nodeId === node.id);
@@ -56,11 +59,11 @@ export function Inspector({ node, cost, values, overrides, setUsage, expanded, o
       </header>
 
       {node.addresses.length > 0 && (
-        <nav className="subtabs" role="tablist">
-          <button role="tab" aria-selected={view === 'overview'} className={view === 'overview' ? 'is-on' : ''} onClick={() => setView('overview')}>
+        <nav className="subtabs" role="group" aria-label="Resource view">
+          <button type="button" aria-pressed={view === 'overview'} className={view === 'overview' ? 'is-on' : ''} onClick={() => setView('overview')}>
             Overview
           </button>
-          <button role="tab" aria-selected={view === 'terraform'} className={view === 'terraform' ? 'is-on' : ''} onClick={() => setView('terraform')}>
+          <button type="button" aria-pressed={view === 'terraform'} className={view === 'terraform' ? 'is-on' : ''} onClick={() => setView('terraform')}>
             Terraform
           </button>
         </nav>
@@ -71,6 +74,15 @@ export function Inspector({ node, cost, values, overrides, setUsage, expanded, o
       ) : (
       <>
       {change && compare && <ChangeSection change={change} diff={compare} />}
+
+      {findings.length > 0 && (
+        <section className="findings">
+          <h3>Findings</h3>
+          <ol className="findings__list">
+            {findings.map((f) => <FindingRow key={f.id} f={f} />)}
+          </ol>
+        </section>
+      )}
 
       {node.virtual && node.type === 'aws_instance' && (
         <p className="muted small">Launched by the Auto Scaling Group. Its cost is counted on the ASG.</p>
