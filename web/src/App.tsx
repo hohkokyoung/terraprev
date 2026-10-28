@@ -68,6 +68,7 @@ export function App() {
   const [showSupporting, setShowSupporting] = useState(false);
   const [showDeps, setShowDeps] = useState(false);
   const [flowMode, setFlowMode] = useState(false);
+  const [showKey, setShowKey] = useState(false);
   // Print layout: fixed-size diagram + report pages. "#print" in the URL = headless PDF export.
   const autoPrint = typeof location !== 'undefined' && location.hash.startsWith('#print');
   const autoReport = typeof location !== 'undefined' && location.hash.startsWith('#report');
@@ -307,6 +308,45 @@ export function App() {
               <li className="k-uses">uses (click a node)</li>
               <li className="k-route">route</li>
             </ul>
+            <button type="button" className={`toggle toggle--key ${showKey ? 'is-on' : ''}`} aria-expanded={showKey} aria-controls="diagkey" onClick={() => setShowKey(v => !v)}>Key</button>
+            {showKey && (
+              <ul className="keypanel" id="diagkey" aria-label="How to read the diagram">
+                <li aria-hidden="true"><span className="keypanel__title" style={{ gridColumn: '1 / -1' }}>How to read the diagram</span></li>
+                <li>
+                  <span className="sample" style={{ ['--cat' as string]: 'var(--cat-storage)' }}>
+                    <span className="rnode__tag">DB</span>
+                  </span>
+                  <span>4px stripe and tinted tag: the resource's AWS category, reused in the cost rows and legend.</span>
+                </li>
+                <li>
+                  <span className="sample">
+                    <span className="rnode__cost">{'~$1.23'}</span>
+                  </span>
+                  <span>{"~ before a figure: usage-based estimate, adjustable with the sliders in Cost."}</span>
+                </li>
+                <li>
+                  <span className="sample">
+                    <span className="chip chip--iam">IAM</span>
+                    <span className="chip chip--sg">SG</span>
+                  </span>
+                  <span>IAM / SG chips: access attached to the node; click to expand the policies.</span>
+                </li>
+                <li>
+                  <span className="sample"><span className="kdash" /></span>
+                  <span>Dashed contour: a virtual boundary such as a router or the internet edge, not a deployed resource.</span>
+                </li>
+                <li>
+                  <span className="sample"><span className="sev sev--high">High</span></span>
+                  <span>Severity stamp: the worst open finding; select the resource for the details.</span>
+                </li>
+                {diff && (
+                  <li>
+                    <span className="sample"><span className="chg chg--added">+ added</span></span>
+                    <span>In this {diff.kind === 'plan' ? 'plan' : 'comparison'}: pills mark what changes; a dashed contour means the resource only exists on the other side.</span>
+                  </li>
+                )}
+              </ul>
+            )}
           </div>
           {snapshot ? (
             <ReactFlowProvider>

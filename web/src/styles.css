@@ -952,3 +952,24 @@ button { font: inherit; color: inherit; }
 .history__axis { display: flex; justify-content: space-between; font-size: var(--fs-2xs); color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .history__why, .history__note { margin: 0; }
 .history__why { color: var(--ink-2); }
+
+/* ── diagram key ── */
+.toggle--key.is-on { border-color: var(--accent); color: var(--accent); }
+.keypanel {
+  position: absolute; z-index: 5; top: 52px; left: 12px; max-width: min(430px, calc(100% - 24px));
+  margin: 0; padding: 10px 14px 12px; list-style: none;
+  display: grid; gap: 7px; font-size: var(--fs-sm); color: var(--ink-2);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow);
+}
+.keypanel__title { font-size: var(--fs-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--ink-3); }
+.keypanel li { display: grid; grid-template-columns: 86px 1fr; gap: 10px; align-items: center; }
+.keypanel li > span:last-child { min-width: 0; }
+/* samples reuse the real classes so the key never goes stale */
+.keypanel .sample { display: inline-flex; align-items: center; gap: 6px; min-height: 20px; }
+.keypanel .rnode__tag { min-width: 24px; height: 17px; font-size: 9px; border-radius: 4px; }
+.keypanel .rnode__cost { font-size: x-small; padding: 0 5px; }
+.keypanel .chip { font-size: 8px; padding: 2px 4px; border-radius: 4px; }
+.keypanel .kdash { width: 44px; height: 16px; border: 1.5px dashed var(--vpc); border-left-style: solid; border-left-width: 4px; border-left-color: var(--vpc); border-radius: 5px; background: color-mix(in srgb, var(--vpc) 4%, transparent); }
+.keypanel .sev { font-size: 8px; padding: 1px 5px; }
+.keypanel li.is-ghosted { grid-template-columns: 86px 1fr; }
+@media (max-width: 600px) { .keypanel { top: 46px; padding: 8px 10px 10px; } .keypanel li { grid-template-columns: 72px 1fr; gap: 6px; } }
