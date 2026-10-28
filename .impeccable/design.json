@@ -103,15 +103,15 @@
       "ink-3": {
         "role": "neutral",
         "displayName": "Pencil Grey",
-        "canonical": "#85878d",
+        "canonical": "#6c6d72",
         "tonalRamp": [
-          "#000b0d",
-          "#202125",
-          "#3b3d42",
-          "#595b60",
-          "#787a80",
-          "#9c9ea3",
-          "#c6c7cb",
+          "#0b0b0d",
+          "#212124",
+          "#3c3d41",
+          "#595a5f",
+          "#797a7f",
+          "#9d9ea3",
+          "#c6c7ca",
           "#eeeef0"
         ],
         "purpose": "Muted text, dashed dependency edges."
@@ -184,32 +184,32 @@
       "ok": {
         "role": "status",
         "displayName": "Check Green",
-        "canonical": "#2f8f4e",
+        "canonical": "#277540",
         "tonalRamp": [
           "#001200",
-          "#002d00",
-          "#004d17",
-          "#006e2f",
-          "#328f50",
-          "#67b279",
-          "#a6d5af",
-          "#dff5e3"
+          "#002c00",
+          "#004b1f",
+          "#1c6c37",
+          "#438d57",
+          "#71b07f",
+          "#abd3b3",
+          "#e2f4e5"
         ],
         "purpose": "Monthly-ok / fixed states; switch checked."
       },
       "warn": {
         "role": "status",
         "displayName": "Annotation Ochre",
-        "canonical": "#b5651d",
+        "canonical": "#985518",
         "tonalRamp": [
-          "#1f0000",
-          "#400f00",
-          "#672700",
-          "#8f4200",
-          "#b2631e",
-          "#d28c56",
-          "#ecbc9a",
-          "#ffeada"
+          "#1d0000",
+          "#3d1300",
+          "#622c00",
+          "#894700",
+          "#ab6830",
+          "#cc8f61",
+          "#e7bea0",
+          "#feeadc"
         ],
         "purpose": "Warnings, findings, changed deltas, plan banner."
       },
@@ -248,31 +248,31 @@
       "iam": {
         "role": "overlay",
         "displayName": "IAM Rust",
-        "canonical": "#c4473a",
+        "canonical": "#b04034",
         "tonalRamp": [
-          "#260000",
-          "#4b0000",
-          "#770000",
-          "#a2261c",
-          "#c74c3f",
-          "#e77a6b",
-          "#fcb2a6",
-          "#ffe5df"
+          "#240000",
+          "#480000",
+          "#72120c",
+          "#9d2e24",
+          "#c15245",
+          "#e27e70",
+          "#f8b4a9",
+          "#ffe6e0"
         ],
         "purpose": "IAM chip on resource nodes."
       },
       "sg": {
         "role": "overlay",
         "displayName": "Security Violet",
-        "canonical": "#7a5cc7",
+        "canonical": "#7055b7",
         "tonalRamp": [
-          "#0f002b",
-          "#270d52",
-          "#43267e",
-          "#6242aa",
-          "#8064cd",
-          "#a38deb",
-          "#c9bdfc",
+          "#0f0029",
+          "#26104f",
+          "#43297a",
+          "#6145a5",
+          "#7f66c8",
+          "#a28ee6",
+          "#c9bef8",
           "#efeaff"
         ],
         "purpose": "Security-group chip; reuses Network Violet."
@@ -296,63 +296,63 @@
       "cat-compute": {
         "role": "category",
         "displayName": "Computer Amber",
-        "canonical": "#e07b2c",
+        "canonical": "#9b551e",
         "tonalRamp": [
-          "#220000",
-          "#460000",
-          "#6f1e00",
-          "#983900",
-          "#bc5c00",
-          "#dc864a",
-          "#f3b994",
-          "#ffe8d7"
+          "#1d0000",
+          "#3e1200",
+          "#632a00",
+          "#8a4600",
+          "#ac6633",
+          "#ce8e63",
+          "#e9bda1",
+          "#ffeadd"
         ],
         "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
       },
       "cat-database": {
         "role": "category",
         "displayName": "Database Blue",
-        "canonical": "#3567d1",
+        "canonical": "#3262c7",
         "tonalRamp": [
-          "#000032",
-          "#00185c",
-          "#0c338b",
-          "#2252ba",
-          "#4274dd",
-          "#6d9cf9",
-          "#a7c8ff",
-          "#dfefff"
+          "#000031",
+          "#001959",
+          "#0e3488",
+          "#2453b6",
+          "#4475d9",
+          "#6f9cf6",
+          "#a8c8ff",
+          "#e0efff"
         ],
         "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
       },
       "cat-storage": {
         "role": "category",
         "displayName": "Storage Leaf",
-        "canonical": "#3b9254",
+        "canonical": "#2f7342",
         "tonalRamp": [
-          "#001200",
-          "#002c00",
-          "#004c1a",
-          "#006d32",
-          "#398e52",
-          "#6bb17b",
-          "#a8d5b0",
-          "#e0f5e4"
+          "#001100",
+          "#002b0c",
+          "#0b4a22",
+          "#266b3a",
+          "#498b5a",
+          "#76ae81",
+          "#aed2b4",
+          "#e3f4e6"
         ],
         "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
       },
       "cat-network": {
         "role": "category",
         "displayName": "Network Violet",
-        "canonical": "#7a5cc7",
+        "canonical": "#7055b7",
         "tonalRamp": [
-          "#0f002b",
-          "#270d52",
-          "#43267e",
-          "#6242aa",
-          "#8064cd",
-          "#a38deb",
-          "#c9bdfc",
+          "#0f0029",
+          "#26104f",
+          "#43297a",
+          "#6145a5",
+          "#7f66c8",
+          "#a28ee6",
+          "#c9bef8",
           "#efeaff"
         ],
         "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
@@ -360,80 +360,80 @@
       "cat-integration": {
         "role": "category",
         "displayName": "Integration Rose",
-        "canonical": "#cc3f73",
+        "canonical": "#b13764",
         "tonalRamp": [
-          "#260000",
-          "#4c001d",
-          "#780036",
-          "#a41053",
-          "#c94072",
-          "#ea7197",
-          "#feacc2",
-          "#ffe3ec"
+          "#240000",
+          "#48001d",
+          "#730037",
+          "#9d2354",
+          "#c24973",
+          "#e37798",
+          "#f9afc3",
+          "#ffe4ec"
         ],
         "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
       },
       "cat-api": {
         "role": "category",
         "displayName": "API Teal",
-        "canonical": "#188e9b",
+        "canonical": "#13707a",
         "tonalRamp": [
-          "#001016",
-          "#002a32",
-          "#004953",
-          "#006976",
-          "#168a96",
-          "#5aadb8",
-          "#9fd2d9",
-          "#ddf4f7"
+          "#001014",
+          "#00292f",
+          "#00474f",
+          "#006771",
+          "#368892",
+          "#69abb4",
+          "#a6d0d6",
+          "#e0f3f5"
         ],
         "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
       },
       "cat-security": {
         "role": "category",
         "displayName": "Security Rust",
-        "canonical": "#c4473a",
+        "canonical": "#b04034",
         "tonalRamp": [
-          "#260000",
-          "#4b0000",
-          "#770000",
-          "#a2261c",
-          "#c74c3f",
-          "#e77a6b",
-          "#fcb2a6",
-          "#ffe5df"
+          "#240000",
+          "#480000",
+          "#72120c",
+          "#9d2e24",
+          "#c15245",
+          "#e27e70",
+          "#f8b4a9",
+          "#ffe6e0"
         ],
         "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
       },
       "cat-monitoring": {
         "role": "category",
         "displayName": "Monitoring Brass",
-        "canonical": "#b98a10",
+        "canonical": "#83620b",
         "tonalRamp": [
-          "#190000",
-          "#371a00",
-          "#593400",
-          "#7e5100",
-          "#9f7200",
-          "#c09843",
-          "#dec491",
-          "#f9edd6"
+          "#160000",
+          "#321d00",
+          "#533800",
+          "#755500",
+          "#96752a",
+          "#b89a5d",
+          "#d8c59e",
+          "#f7eedc"
         ],
         "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
       },
       "cat-other": {
         "role": "category",
         "displayName": "Unclassified Grey",
-        "canonical": "#6b6e75",
+        "canonical": "#65676e",
         "tonalRamp": [
           "#000b0e",
-          "#202226",
-          "#3b3d43",
-          "#585b61",
-          "#777a81",
+          "#202126",
+          "#3b3d42",
+          "#595a61",
+          "#787a81",
           "#9c9ea5",
-          "#c5c7cb",
-          "#edeef0"
+          "#c6c7cb",
+          "#eeeef0"
         ],
         "purpose": "1px outline of the node type code, legend dot, cost bar. Identifies; never fills surfaces or runs down an edge."
       },
@@ -546,13 +546,13 @@
           "code-bg": "#15161a",
           "ink": "#ecebe6",
           "ink-2": "#b4b3ad",
-          "ink-3": "#7c7c78",
+          "ink-3": "#94948f",
           "line": "#2a2b31",
           "line-2": "#3a3b42",
           "dots": "#2b2c32",
           "accent": "#5b9bff",
           "vpc": "#a28cf0",
-          "sg": "#a28cf0",
+          "sg": "#9f8ad7",
           "subnet-public": "#18241c",
           "subnet-private": "#18202c",
           "subnet-public-line": "#2f4a36",
@@ -562,18 +562,28 @@
           "t-key": "#8ab4ff",
           "t-ref": "#f0b06a",
           "t-lit": "#f09a7a",
-          "t-kw": "#e08ad0"
+          "t-kw": "#e08ad0",
+          "warn": "#c78a53",
+          "ok": "#5ba773",
+          "bad": "#d77c76",
+          "iam": "#d67e75",
+          "cat-compute": "#e07b2c",
+          "cat-database": "#7496df",
+          "cat-storage": "#5ea673",
+          "cat-network": "#9f8ad7",
+          "cat-integration": "#db779c",
+          "cat-api": "#46a5af",
+          "cat-security": "#d67e75",
+          "cat-monitoring": "#bc8f1a",
+          "cat-other": "#94979c"
         },
         "shadows": {
           "chrome": "0 1px 2px rgb(0 0 0 / 0.4), 0 4px 14px rgb(0 0 0 / 0.25)"
         },
         "unchanged": [
-          "ok",
-          "warn",
-          "bad",
-          "fresh",
-          "iam",
-          "all cat-* and t-* hues"
+          "fresh (transient glow, never text)",
+          "all t-* syntax hues",
+          "accent (own dark variant already listed)"
         ]
       }
     ],

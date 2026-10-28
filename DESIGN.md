@@ -8,27 +8,27 @@ colors:
   code-bg: "#f3f1ea"
   ink: "#1c1d20"
   ink-2: "#4a4c52"
-  ink-3: "#85878d"
+  ink-3: "#6c6d72"
   line: "#e2dfd6"
   line-2: "#cfcbbf"
   dots: "#d6d2c6"
   accent: "#1f6feb"
-  ok: "#2f8f4e"
-  warn: "#b5651d"
+  ok: "#277540"
+  warn: "#985518"
   bad: "#c2382f"
   fresh: "#36b46b"
-  iam: "#c4473a"
-  sg: "#7a5cc7"
+  iam: "#b04034"
+  sg: "#7055b7"
   vpc: "#7a5cc7"
-  cat-compute: "#e07b2c"
-  cat-database: "#3567d1"
-  cat-storage: "#3b9254"
-  cat-network: "#7a5cc7"
-  cat-integration: "#cc3f73"
-  cat-api: "#188e9b"
-  cat-security: "#c4473a"
-  cat-monitoring: "#b98a10"
-  cat-other: "#6b6e75"
+  cat-compute: "#9b551e"
+  cat-database: "#3262c7"
+  cat-storage: "#2f7342"
+  cat-network: "#7055b7"
+  cat-integration: "#b13764"
+  cat-api: "#13707a"
+  cat-security: "#b04034"
+  cat-monitoring: "#83620b"
+  cat-other: "#65676e"
   t-com: "#8a8c92"
   t-str: "#2f7d4a"
   t-key: "#1f5fb8"
@@ -168,16 +168,16 @@ The palette is drafting paper plus one mark-up pen: warm paper neutrals do the d
 
 ### Status
 Used as small outlined tags next to words, never as the only signal (WCAG 2.2 AA):
-- **Check Green** (`#2f8f4e`): monthly ok / fixed items, statements Allow (in dark tint backgrounds).
-- **Annotation Ochre** (`#b5651d`): warnings and findings, "changed" deltas, slider caution, plan-preview banner.
+- **Check Green** (`#277540`): monthly ok / fixed items, statements Allow (in dark tint backgrounds).
+- **Annotation Ochre** (`#985518`): warnings and findings, "changed" deltas, slider caution, plan-preview banner.
 - **Revision Red** (`#c2382f`): errors, "removed/destroyed", deny statements, high-severity findings.
 - **Apply Green** (`#36b46b`): the transient just-applied pulse in the diagram and banner; deliberately brighter than Check Green and used only for the moment after apply.
 
 ### Category hues
-Nine fixed hues, one per AWS resource category, used as the 1px outline around a node's type code, a legend dot or a cost bar — never as a surface fill or a side stripe: **Computer Amber** (`#e07b2c`), **Database Blue** (`#3567d1`), **Storage Leaf** (`#3b9254`), **Network Violet** (`#7a5cc7`), **Integration Rose** (`#cc3f73`), **API Teal** (`#188e9b`), **Security Rust** (`#c4473a`), **Monitoring Brass** (`#b98a10`), **Unclassified Grey** (`#6b6e75`). Network Violet doubles as the VPC boundary stroke and dotted route-line color.
+Nine fixed hues, one per AWS resource category, used as the 1px outline around a node's type code, a legend dot or a cost bar — never as a surface fill or a side stripe: **Computer Amber** (`#9b551e`), **Database Blue** (`#3262c7`), **Storage Leaf** (`#2f7342`), **Network Violet** (`#7055b7`), **Integration Rose** (`#b13764`), **API Teal** (`#13707a`), **Security Rust** (`#b04034`), **Monitoring Brass** (`#83620b`), **Unclassified Grey** (`#65676e`). Network Violet doubles as the VPC boundary stroke and dotted route-line color.
 
 ### Overlay hues
-- **IAM Rust** (`#c4473a`) and **Security Violet** (`#7a5cc7`): the IAM / security-group chips clipped to node bottom edges; Security Violet reuses Network Violet so firewalls read as network-domain objects.
+- **IAM Rust** (`#b04034`) and **Security Violet** (`#7055b7`): the IAM / security-group chips clipped to node bottom edges; Security Violet reuses Network Violet so firewalls read as network-domain objects.
 
 ### Neutral
 All neutrals are slightly warm — no pure white or black anywhere on a screen:
@@ -187,7 +187,7 @@ All neutrals are slightly warm — no pure white or black anywhere on a screen:
 - **Code Paper** (`#f3f1ea`): HCL source blocks only.
 - **Blueprint Ink** (`#1c1d20`): primary text and the strongest borders (2px rules under brief headings, table totals).
 - **Slate Ink** (`#4a4c52`): secondary text, solid dependency edges, arrowheads.
-- **Pencil Grey** (`#85878d`): muted text, dashed "uses" edges; never below WCAG AA at its size.
+- **Pencil Grey** (`#6c6d72`): muted text, dashed "uses" edges; never below WCAG AA at its size.
 - **Hairline Sand** (`#e2dfd6`) / **Hairline Umber** (`#cfcbbf`): the two-duct border scale; Sand separates sections, Umber outlines drawing elements.
 
 ### Syntax palette

@@ -19,16 +19,16 @@
   --panel: #fffefb;
   --ink: #1c1d20;
   --ink-2: #4a4c52;
-  --ink-3: #85878d;
+  --ink-3: #6c6d72;
   --line: #e2dfd6;
   --line-2: #cfcbbf;
   --dots: #d6d2c6;
   --accent: #1f6feb;
-  --ok: #2f8f4e;
-  --warn: #b5651d;
+  --ok: #277540;
+  --warn: #985518;
   --bad: #c2382f;
   --fresh: #36b46b;
-  --iam: #c4473a;
+  --iam: #b04034;
   --code-bg: #f3f1ea;
   --t-com: #8a8c92;
   --t-str: #2f7d4a;
@@ -36,7 +36,7 @@
   --t-key: #1f5fb8;
   --t-ref: #b5651d;
   --t-lit: #a0522d;
-  --sg: #7a5cc7;
+  --sg: #7055b7;
 
   --vpc: #7a5cc7;
   --subnet-public: #eaf4ea;
@@ -44,15 +44,15 @@
   --subnet-public-line: #b8d6bb;
   --subnet-private-line: #bfcde3;
 
-  --cat-compute: #e07b2c;
-  --cat-database: #3567d1;
-  --cat-storage: #3b9254;
-  --cat-network: #7a5cc7;
-  --cat-integration: #cc3f73;
-  --cat-api: #188e9b;
-  --cat-security: #c4473a;
-  --cat-monitoring: #b98a10;
-  --cat-other: #6b6e75;
+  --cat-compute: #9b551e;
+  --cat-database: #3262c7;
+  --cat-storage: #2f7342;
+  --cat-network: #7055b7;
+  --cat-integration: #b13764;
+  --cat-api: #13707a;
+  --cat-security: #b04034;
+  --cat-monitoring: #83620b;
+  --cat-other: #65676e;
 
   --shadow: 0 1px 2px rgb(30 25 10 / 0.06), 0 2px 8px rgb(30 25 10 / 0.05);
   color-scheme: light;
@@ -72,11 +72,25 @@
     --panel: #1c1d22;
     --ink: #ecebe6;
     --ink-2: #b4b3ad;
-    --ink-3: #7c7c78;
+    --ink-3: #94948f;
     --line: #2a2b31;
     --line-2: #3a3b42;
     --dots: #2b2c32;
     --accent: #5b9bff;
+    --warn: #c78a53;
+    --ok: #5ba773;
+    --bad: #d77c76;
+    --iam: #d67e75;
+    --sg: #9f8ad7;
+    --cat-compute: #e07b2c;
+    --cat-database: #7496df;
+    --cat-storage: #5ea673;
+    --cat-network: #9f8ad7;
+    --cat-integration: #db779c;
+    --cat-api: #46a5af;
+    --cat-security: #d67e75;
+    --cat-monitoring: #bc8f1a;
+    --cat-other: #94979c;
     --vpc: #a28cf0;
     --subnet-public: #18241c;
     --subnet-private: #18202c;
@@ -99,11 +113,25 @@
     --panel: #1c1d22;
     --ink: #ecebe6;
     --ink-2: #b4b3ad;
-    --ink-3: #7c7c78;
+    --ink-3: #94948f;
     --line: #2a2b31;
     --line-2: #3a3b42;
     --dots: #2b2c32;
     --accent: #5b9bff;
+    --warn: #c78a53;
+    --ok: #5ba773;
+    --bad: #d77c76;
+    --iam: #d67e75;
+    --sg: #9f8ad7;
+    --cat-compute: #e07b2c;
+    --cat-database: #7496df;
+    --cat-storage: #5ea673;
+    --cat-network: #9f8ad7;
+    --cat-integration: #db779c;
+    --cat-api: #46a5af;
+    --cat-security: #d67e75;
+    --cat-monitoring: #bc8f1a;
+    --cat-other: #94979c;
     --vpc: #a28cf0;
     --subnet-public: #18241c;
     --subnet-private: #18202c;
@@ -354,7 +382,7 @@ button { font: inherit; color: inherit; }
 .lines__name { font-weight: 500; font-size: var(--fs-md); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .lines__calc { font: var(--fs-xs)/1.5 var(--mono); color: var(--ink-2); margin-top: 2px; }
 .lines__note { font-size: var(--fs-sm); color: var(--ink-3); margin-top: 3px; }
-.lines__sku { font: var(--fs-2xs)/1.5 var(--mono); color: var(--ink-3); margin-top: 3px; opacity: 0.8; }
+.lines__sku { font: var(--fs-2xs)/1.5 var(--mono); color: var(--ink-3); margin-top: 3px; }
 .pill { font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 0 4px; border-radius: 3px; border: 1px solid currentColor; color: var(--accent); }
 
 .kv { margin: 0; display: grid; gap: 4px; font-size: var(--fs-sm); }
