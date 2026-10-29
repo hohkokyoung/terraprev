@@ -75,9 +75,9 @@ await shot('select', { db: node('app-db'), head: '.inspector__head', lines: '.li
 
 // Selecting app-db scopes the panel to it: the same tabs, for that one resource.
 await click(page, '.tabs ::-p-text(Cost)');
-await shot('cost-one', { scope: '.scopebar', head: '.scopehead', lines: '.lines' });
+await shot('cost-one', { scope: '.scopebar', head: '.scopehead', lines: '.lines', canvas: '.canvas', alb: node('web-alb'), asg: node('app-asg') });
 await click(page, '.tabs ::-p-text(Findings)');
-await shot('risks', { scope: '.scopebar', finding: '.frow' });
+await shot('risks', { scope: '.scopebar', finding: '.frow', alb: node('web-alb'), asg: node('app-asg') });
 await click(page, '.scopebar ::-p-text(Whole stack)');
 
 await click(page, '.tabs ::-p-text(Usage)');
@@ -106,7 +106,7 @@ await shot('flow-0', { toggle: '.toggle--flow' });
 await click(page, '::-p-text(Data flow)');
 await shot('flow-1', { toggle: '.toggle--flow' });
 await click(page, node('app-asg'));
-await shot('flow', { asg: node('app-asg'), internet: '.rnode--internet', alb: node('web-alb'), toggle: '.toggle--flow', paths: '.paths' });
+await shot('flow', { asg: node('app-asg'), internet: '.rnode--internet', alb: node('web-alb'), canvas: '.canvas', toggle: '.toggle--flow', paths: '.paths' });
 await click(page, '::-p-text(Data flow)');
 
 await click(page, '.rnode__chips');

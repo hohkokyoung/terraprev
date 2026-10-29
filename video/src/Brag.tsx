@@ -5,7 +5,7 @@
 
 import type { CSSProperties, ReactNode } from 'react';
 import { AbsoluteFill, Html5Audio, interpolate, interpolateColors, Sequence, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
-import { at, ease, placeOver, Shot, union } from './Shot.tsx';
+import { at, ease, selectIn, Shot, union } from './Shot.tsx';
 import { DOLLAR, FULL, HOOK, LOOP, MORPH, OUTRO, REVEAL, RISKS, STRETCH, WHATIF, type SceneName, type Timeline } from './brag-timeline.ts';
 
 export const BRAG_FPS = 30;
@@ -225,8 +225,7 @@ function RevealShot() {
       w={VIEW.w}
       h={VIEW.h}
       pace={PACE}
-      // The flow shot was taken after the app zoomed in on a selection: placed over the overview, only the path and the ring change.
-      images={[{ shot: 'overview', from: 0 }, { shot: 'flow', from: u(REVEAL.flow), place: placeOver('overview', 'flow', 'alb', 'asg') }]}
+      images={selectIn('overview', 'flow', u(REVEAL.flow))}
       focus={[
         { from: 0, rect: null },
         { from: u(REVEAL.toPath), rect: { ...path, y: path.y - 60, h: path.h + 90 }, zoom: 2.3 },
@@ -247,7 +246,7 @@ function DollarShot() {
       w={VIEW.w}
       h={VIEW.h}
       pace={PACE}
-      images={[{ shot: 'overview', from: 0 }, { shot: 'cost-one', from: u(DOLLAR.click) }]}
+      images={selectIn('overview', 'cost-one', u(DOLLAR.click))}
       focus={[
         { from: 0, rect: { x: 400, y: 0, w: 1200, h: 700 }, zoom: 1.4 }, // the diagram and the panel, header included
         { from: u(DOLLAR.toHead), rect: union(at('cost-one', 'scope'), at('cost-one', 'head')), zoom: 2.4 },

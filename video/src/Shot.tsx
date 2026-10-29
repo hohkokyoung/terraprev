@@ -20,6 +20,40 @@ export function useT(pace = PACE) {
 
 export const at = (shot: ShotName, key: string): Rect => (data.shots[shot] as Record<string, Rect>)[key];
 
+/**
+ * A click that selects a node: the app zooms its diagram onto the selection, but the video shouldn't jump.
+ * From `from` on, `shot` replaces `base` with its page chrome (top bar, canvas toolbar, side panel) as
+ * captured, and its diagram placed over `base`'s (by web-alb and app-asg), so only the selection and the panel change.
+ */
+export function selectIn(base: ShotName, shot: ShotName, from: number): ShotProps['images'] {
+  const c = at(base, 'canvas');
+  const tools = 50; // the canvas toolbar row: chrome, not drawing
+  const W = data.width;
+  const H = data.height;
+  // The drawing, without the zoom buttons (bottom left), minimap (bottom right) and the panel's
+  // collapse handle (right edge): chrome that stays put.
+  const corner = { controls: 60, minimap: 175, height: 130, handle: 32 };
+  const drawing = [
+    { x: c.x, y: c.y + tools, w: c.w - corner.handle, h: c.h - tools - corner.height },
+    { x: c.x + corner.controls, y: c.y + c.h - corner.height, w: c.w - corner.controls - corner.minimap, h: corner.height },
+  ];
+  const place = placeOver(base, shot, 'alb', 'asg');
+  // Only drawing from the placed copy: its own drawing area, moved by the placement, inside base's.
+  const move = (r: Rect): Rect => ({ x: r.x * place.scale + place.dx, y: r.y * place.scale + place.dy, w: r.w * place.scale, h: r.h * place.scale });
+  return [
+    { shot: base, from: 0 },
+    { shot, from, clip: { x: 0, y: 0, w: W, h: c.y + tools } },
+    { shot, from, clip: { x: c.x + c.w, y: 0, w: W - (c.x + c.w), h: H } },
+    ...drawing.flatMap((a) => drawing.map((b) => ({ shot, from, clip: intersect(a, move(b)), place }))),
+  ];
+}
+
+function intersect(a: Rect, b: Rect): Rect {
+  const x = Math.max(a.x, b.x);
+  const y = Math.max(a.y, b.y);
+  return { x, y, w: Math.max(0, Math.min(a.x + a.w, b.x + b.w) - x), h: Math.max(0, Math.min(a.y + a.h, b.y + b.h) - y) };
+}
+
 /** How to place `shot` over `base` so the two named elements land where they are in `base`. */
 export function placeOver(base: ShotName, shot: ShotName, a: string, b: string) {
   const [pa, pb, qa, qb] = [at(base, a), at(base, b), at(shot, a), at(shot, b)];
@@ -40,9 +74,10 @@ export interface ShotProps {
   h: number;
   /**
    * Screenshots in order; each one cuts in at its time, like the UI reacting to a click. `place` puts a
-   * shot taken at another zoom over the first one (page px: x' = x·scale + dx), so nothing jumps at the cut.
+   * shot taken at another zoom over the first one (page px: x' = x·scale + dx), so nothing jumps at the cut;
+   * `clip` shows only that part of it (page px, where it lands), e.g. the diagram but not the panel.
    */
-  images: { shot: ShotName; from: number; place?: { scale: number; dx: number; dy: number } }[];
+  images: { shot: ShotName; from: number; place?: { scale: number; dx: number; dy: number }; clip?: Rect }[];
   /** Camera targets: null = whole page. Each move starts at its time; `cut` jumps there instead. */
   focus: { from: number; rect: Rect | null; zoom?: number; cut?: boolean }[];
   /** Cursor waypoints in page px; `click` shows a ripple on arrival. */
@@ -78,15 +113,22 @@ export function Shot({ w, h, images, focus, cursor, pace }: ShotProps) {
   return (
     <div style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, overflow: 'hidden', background: '#f4f2ec' }}>
       <div style={{ position: 'absolute', width: w, height: h, transformOrigin: '0 0', transform: `translate(${w / 2 - cam.cx * cam.s}px, ${h / 2 - cam.cy * cam.s}px) scale(${cam.s})` }}>
-        {images.map((im) => (
-          <Img
-            key={im.shot}
-            src={staticFile(`shots/${im.shot}.png`)}
+        {images.map((im, i) => (
+          <div
+            key={i}
             style={{
               position: 'absolute', left: 0, top: 0, width: w, height: h, opacity: f >= im.from ? 1 : 0,
-              ...(im.place && { transformOrigin: '0 0', transform: `translate(${im.place.dx * k}px, ${im.place.dy * k}px) scale(${im.place.scale})` }),
+              ...(im.clip && { clipPath: `inset(${im.clip.y * k}px ${w - (im.clip.x + im.clip.w) * k}px ${h - (im.clip.y + im.clip.h) * k}px ${im.clip.x * k}px)` }),
             }}
-          />
+          >
+            <Img
+              src={staticFile(`shots/${im.shot}.png`)}
+              style={{
+                position: 'absolute', left: 0, top: 0, width: w, height: h,
+                ...(im.place && { transformOrigin: '0 0', transform: `translate(${im.place.dx * k}px, ${im.place.dy * k}px) scale(${im.place.scale})` }),
+              }}
+            />
+          </div>
         ))}
       </div>
       {cursor && <Cursor points={cursor} frame={f} toScreen={toScreen} size={Math.max(26, 38 * (w / 1920))} />}
