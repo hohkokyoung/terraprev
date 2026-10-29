@@ -175,8 +175,8 @@ function Headline({ t, end }: { t: number; end: number }) {
   return (
     <div style={{ position: 'absolute', left: 0, right: 0, top: 235, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
       {/* Settled from the first frame (the poster); only the terminal under it moves. */}
-      <div style={{ ...line, ...rise(t, -1, end + 0.25, 30) }}>Your AWS bill,</div>
-      <div style={{ ...line, color: C.accent, ...rise(t, -1, end + 0.25, 30) }}>before AWS sends it.</div>
+      <div style={{ ...line, ...rise(t, -1, end + 0.25, 30) }}>Your Terraform stack,</div>
+      <div style={{ ...line, color: C.accent, ...rise(t, -1, end + 0.25, 30) }}>explained.</div>
     </div>
   );
 }
